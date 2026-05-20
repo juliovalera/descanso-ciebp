@@ -1,0 +1,45 @@
+{
+  "evento": "Orientação Técnica",
+  "data": "19/05/2026",
+  "mensagem_boas_vindas": "Bem-vindo(a) ao CIEBP! Prepare-se para uma experiência incrível de inovação e aprendizagem.",
+  "professores": [
+    "Prof. Fulano de Tal",
+    "Profa. Beltrana Silva"
+  ],
+  "espaco_padrao": "Cultura Digital",
+  "radio_padrao": "Música local (MP3)",
+  "volume_padrao": 60,
+  "espacos": {
+    "Hub de Inovação": {
+      "imagem": "assets/hub_inovacao.png",
+      "cor_destaque": "#00BCD4"
+    },
+    "Programação Descomplicada": {
+      "imagem": "assets/programacao_descomplicada.png",
+      "cor_destaque": "#4CAF50"
+    },
+    "Cultura Maker": {
+      "imagem": "assets/cultura_maker.png",
+      "cor_destaque": "#FF9800"
+    },
+    "Cultura Digital": {
+      "imagem": "assets/cultura_digital.png",
+      "cor_destaque": "#9C27B0"
+    },
+    "Robótica e Modelagem": {
+      "imagem": "assets/robotica_modelagem.png",
+      "cor_destaque": "#F44336"
+    },
+    "Prototipação e Fabricação Digital": {
+      "imagem": "assets/prototipacao_fabricacao.png",
+      "cor_destaque": "#2196F3"
+    }
+  },
+  "audio_local": "assets\\Futuro_em_Movimento_TAW.mp3",
+  "radios": {
+    "Música local (MP3)": "__local__",
+    "Sem rádio": ""
+  },
+  "logo": "assets/Logo-colorido.png",
+  "fundo_padrao": "Fundo 5"
+}

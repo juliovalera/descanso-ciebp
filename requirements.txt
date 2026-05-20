@@ -1,0 +1,15 @@
+# Dependências do projeto descanso_ciebp
+# Instale com: pip install -r requirements.txt
+#
+# NÃO é necessário instalar nenhum programa externo.
+# Apenas Python + os pacotes abaixo (via pip) são suficientes.
+
+# Manipulação de imagens (redimensionamento, overlay, fallback)
+Pillow>=10.0.0
+
+# Acesso ao Windows Media Player via COM (embutido no Windows 10/11)
+# Nenhum programa extra necessário — o WMP já está no sistema.
+pywin32>=306
+
+# tkinter já vem incluído na instalação padrão do Python para Windows.
+# Caso não esteja disponível, reinstale o Python marcando a opção "tcl/tk and IDLE".

@@ -1,0 +1,42 @@
+# =============================================================================
+# Python
+# =============================================================================
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+.Python
+
+# Ambientes virtuais
+venv/
+.venv/
+env/
+.env
+
+# Distribuição / empacotamento
+dist/
+build/
+*.egg-info/
+*.egg
+MANIFEST
+
+# PyInstaller
+*.spec
+# (pasta gerada pelo build.bat — não versionar o executável compilado)
+
+# =============================================================================
+# IDEs e editores
+# =============================================================================
+.vscode/
+.idea/
+*.sublime-project
+*.sublime-workspace
+
+# =============================================================================
+# Sistema operacional
+# =============================================================================
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+$RECYCLE.BIN/
+.DS_Store
