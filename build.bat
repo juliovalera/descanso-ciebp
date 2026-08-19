@@ -1,5 +1,32 @@
 @echo off
+setlocal
 chcp 65001 > nul
+set "PROJECT_DIR=%~dp0"
+set "PROJECT_DIR=%PROJECT_DIR:~0,-1%"
+set "BUILD_DRIVE=Q:"
+
+if exist %BUILD_DRIVE%\NUL (
+    echo.
+    echo  ERRO: A unidade %BUILD_DRIVE% ja esta em uso.
+    echo  Feche ou libere essa unidade e tente novamente.
+    pause & exit /b 1
+)
+
+subst %BUILD_DRIVE% "%PROJECT_DIR%"
+if errorlevel 1 (
+    echo.
+    echo  ERRO: Nao foi possivel criar a unidade virtual de build.
+    pause & exit /b 1
+)
+
+pushd %BUILD_DRIVE%\
+if errorlevel 1 (
+    echo.
+    echo  ERRO: Nao foi possivel acessar a unidade virtual de build.
+    subst %BUILD_DRIVE% /d > nul 2>nul
+    pause & exit /b 1
+)
+
 echo.
 echo  =========================================================
 echo   CIEBP - Gerando executavel do Descanso de Tela
@@ -7,7 +34,7 @@ echo  =========================================================
 echo.
 
 echo [1/4] Instalando dependencias de build...
-pip install --quiet --upgrade pyinstaller pillow pywin32
+pip install --quiet --upgrade pyinstaller pillow pygame-ce pywin32
 if errorlevel 1 (
     echo.
     echo  ERRO: Falha ao instalar dependencias.
@@ -15,6 +42,9 @@ if errorlevel 1 (
 )
 
 echo [2/4] Compilando...
+rmdir /s /q build 2>nul
+rmdir /s /q dist 2>nul
+del /q "CIEBP_Descanso_de_Tela.spec" 2>nul
 pyinstaller ^
     --noconfirm ^
     --onedir ^
@@ -22,15 +52,19 @@ pyinstaller ^
     --name "CIEBP_Descanso_de_Tela" ^
     --hidden-import "win32com.client" ^
     --hidden-import "pythoncom" ^
+    --hidden-import "pygame" ^
     --hidden-import "PIL.Image" ^
     --hidden-import "PIL.ImageTk" ^
     --hidden-import "PIL.ImageFilter" ^
     --hidden-import "PIL.ImageDraw" ^
+    --collect-all "pygame" ^
     main.py
 
 if errorlevel 1 (
     echo.
     echo  ERRO: Falha na compilacao. Verifique as mensagens acima.
+    popd
+    subst %BUILD_DRIVE% /d > nul 2>nul
     pause & exit /b 1
 )
 
@@ -41,6 +75,8 @@ if exist assets xcopy /e /i /y assets "dist\CIEBP_Descanso_de_Tela\assets" > nul
 echo [4/4] Limpando arquivos temporarios...
 rmdir /s /q build 2>nul
 del /q "CIEBP_Descanso_de_Tela.spec" 2>nul
+popd
+subst %BUILD_DRIVE% /d > nul 2>nul
 
 echo.
 echo  =========================================================
@@ -54,6 +90,7 @@ echo   Copie esta pasta inteira (pen drive, Google Drive...)
 echo   e execute CIEBP_Descanso_de_Tela.exe no destino.
 echo.
 pause
+exit /b 0
 
 
 echo.
@@ -100,13 +137,13 @@ powershell -Command "Invoke-WebRequest -Uri '%PIP_URL%' -OutFile 'get-pip.py'" 2
 "%PY_DIR%\python.exe" get-pip.py --quiet 2>nul
 del /q get-pip.py 2>nul
 
-:: ── Instala Pillow ─────────────────────────────────
-echo [4/5] Instalando Pillow...
-"%PY_DIR%\python.exe" -m pip install --quiet Pillow
+:: ── Instala dependencias do projeto ────────────────
+echo [4/5] Instalando dependencias do projeto...
+"%PY_DIR%\python.exe" -m pip install --quiet Pillow pygame-ce
 
 if errorlevel 1 (
     echo.
-    echo  ERRO: Falha ao instalar Pillow.
+    echo  ERRO: Falha ao instalar as dependencias do projeto.
     pause & exit /b 1
 )
 

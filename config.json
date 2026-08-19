@@ -1,12 +1,11 @@
 {
-  "evento": "Orientação Técnica",
-  "data": "19/05/2026",
+  "evento": "Planejamento e estudo",
+  "data": "19/08/2026",
   "mensagem_boas_vindas": "Bem-vindo(a) ao CIEBP! Prepare-se para uma experiência incrível de inovação e aprendizagem.",
   "professores": [
-    "Prof. Fulano de Tal",
-    "Profa. Beltrana Silva"
+    "Prof. Jùlio e Prof. Alessandro"
   ],
-  "espaco_padrao": "Cultura Digital",
+  "espaco_padrao": "Robótica e Modelagem",
   "radio_padrao": "Música local (MP3)",
   "volume_padrao": 60,
   "espacos": {
@@ -41,5 +40,5 @@
     "Sem rádio": ""
   },
   "logo": "assets/Logo-colorido.png",
-  "fundo_padrao": "Fundo 5"
+  "fundo_padrao": "Ilha do Pescador"
 }

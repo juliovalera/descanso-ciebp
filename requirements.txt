@@ -7,6 +7,9 @@
 # Manipulação de imagens (redimensionamento, overlay, fallback)
 Pillow>=10.0.0
 
+# Reprodução de áudio local com mixer mais estável
+pygame-ce>=2.5.0
+
 # Acesso ao Windows Media Player via COM (embutido no Windows 10/11)
 # Nenhum programa extra necessário — o WMP já está no sistema.
 pywin32>=306
