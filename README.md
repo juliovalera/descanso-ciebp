@@ -1,151 +1,159 @@
-# CIEBP — Descanso de Tela Institucional
+# CIEBP - Tela de Espera
 
-Tela de recepção profissional para eventos do **Centro de Inovação da Escola Básica Paulista (CIEBP)**.  
-Exibe informações do evento, relógio em tempo real e toca música local enquanto aguarda o início das atividades.
+Aplicação em Python para exibir uma tela de espera institucional do **CIEBP** em eventos, formações e momentos de organização do espaço.
 
-![Python](https://img.shields.io/badge/Python-3.10%2B-blue?logo=python&logoColor=white)
-![Plataforma](https://img.shields.io/badge/Plataforma-Windows-informational?logo=windows)
-![Licença](https://img.shields.io/badge/Licen%C3%A7a-MIT-green)
+Ela mostra relógio em tempo real, dados do evento, mensagem de boas-vindas, reproduz áudio local e permite escolher fundos visuais, incluindo um fundo animado com a **Ilha do Pescador**.
 
----
+## O que o projeto faz
 
-## Funcionalidades
+- Exibe a tela em modo cheio com identidade visual do CIEBP.
+- Permite informar nome do evento, data, professores e mensagem.
+- Preenche a data atual automaticamente no launcher, com possibilidade de edição.
+- Reproduz áudio local com backend mais estável.
+- Mostra alertas visuais programados 5 minutos antes de horários importantes.
+- Oferece modo de teste para os avisos.
+- Permite escolher fundo estático ou fundo animado.
 
-- **Tela cheia institucional** com imagem de fundo por espaço do CIEBP
-- **Relógio em tempo real** (hora e data atualizados a cada segundo)
-- **Informações do evento**: nome, data e professores responsáveis
-- **Mensagem de boas-vindas** configurável
-- **Reprodução de MP3 local** via Windows Media Player (COM) ou PowerShell como fallback
-- **Launcher de configuração** — janela inicial para ajustar o evento antes de exibir a tela
-- **Fundo automático** em degradê institucional caso a imagem do espaço não seja encontrada
-- **Portável**: funciona como script Python ou como executável `.exe` gerado via PyInstaller
+## Destaques atuais
 
----
+- **Áudio local mais estável** com `pygame-ce`, com fallback para Windows Media Player e PowerShell quando necessário.
+- **Avisos animados** com confetes e foguetes nos horários programados.
+- **Fundo “Ilha do Pescador”** com:
+  - sol se movimentando conforme o horário do dia
+  - reflexo do sol acompanhando a água
+  - pescador com animações calmas
+  - peixe ou bota aparecendo visualmente quando há captura
+- **Melhorias de legibilidade** nos textos da tela principal.
 
-## Espaços suportados
+## Horários dos avisos
 
-| Espaço                          | Cor de destaque |
-|---------------------------------|-----------------|
-| Hub de Inovação                 | `#00BCD4`       |
-| Programação Descomplicada       | `#4CAF50`       |
-| Cultura Maker                   | `#FF9800`       |
-| Cultura Digital                 | `#9C27B0`       |
-| Robótica e Modelagem            | `#F44336`       |
-| Prototipação e Fabricação Digital | `#2196F3`     |
+Os avisos são disparados **5 minutos antes** destes horários:
 
----
+- `11:55` - aviso de almoço
+- `16:55` - término do expediente do primeiro professor
+- `17:55` - término do expediente do segundo professor
 
-## Pré-requisitos
+No uso normal, aparece apenas a animação para chamar atenção.  
+No launcher existe também um **modo de teste** para visualizar o aviso imediatamente.
 
-- **Windows 10 ou 11**
-- **Python 3.10+** com tkinter (incluído na instalação padrão)
+## Requisitos
 
----
+- Windows 10 ou Windows 11
+- Python 3.10 ou superior
+- `tkinter` disponível na instalação do Python
 
-## Instalação
+## Dependências
+
+Instale com:
 
 ```bash
-# 1. Clone o repositório
-git clone https://github.com/juliovalera/descanso-ciebp.git
-cd descanso-ciebp
-
-# 2. Instale as dependências
 pip install -r requirements.txt
 ```
 
-### Dependências
+Pacotes usados:
 
-| Pacote    | Finalidade                                      |
-|-----------|-------------------------------------------------|
-| `Pillow`  | Redimensionamento e sobreposição de imagens     |
-| `pywin32` | Controle do Windows Media Player via COM (opcional) |
+- `Pillow` para tratamento de imagens
+- `pygame-ce` para reprodução de áudio local
+- `pywin32` para integração com recursos do Windows
 
-> **Nota:** sem `pywin32`, o programa usa o PowerShell embutido no Windows como fallback de áudio — nenhum programa externo é necessário.
-
----
-
-## Como usar
-
-### Rodando pelo Python
+## Como executar
 
 ```bash
 python main.py
 ```
 
-1. A janela de configuração abrirá primeiro.
-2. Preencha (ou confirme) os dados do evento: nome, data, professores e mensagem.
-3. Selecione o **espaço** e o **fundo** desejado.
-4. Clique em **Iniciar** — a tela cheia será exibida.
-5. Pressione `Esc` para encerrar.
+## Como usar
 
-### Gerando o executável `.exe`
+1. Abra o launcher.
+2. Preencha ou ajuste os dados do evento.
+3. Escolha o espaço, o fundo e o áudio.
+4. Se quiser, use o botão de teste de aviso.
+5. Clique em `Iniciar tela de espera`.
+6. Para sair da tela cheia, pressione `Esc`.
+
+## Fundos disponíveis
+
+- `Padrão do espaço`
+- `Fundo 1` a `Fundo 6` (quando os arquivos existirem em `assets/`)
+- `Ilha do Pescador`
+
+## Estrutura do projeto
+
+```text
+descanso-ciebp/
+|-- main.py
+|-- config.json
+|-- requirements.txt
+|-- build.bat
+|-- README.md
+`-- assets/
+    |-- Logo-colorido.png
+    |-- Futuro_em_Movimento_TAW.mp3
+    |-- fundo1.png
+    |-- fundo2.png
+    |-- fundo3.png
+    |-- fundo4.png
+    |-- fundo5.png
+    |-- fundo6.png
+    `-- LEIA-ME.md
+```
+
+## Build do executável
+
+Para gerar o executável:
 
 ```bat
 build.bat
 ```
 
-O executável `CIEBP_Descanso_de_Tela.exe` será criado na pasta `dist/`.  
-Copie também a pasta `assets/` e o arquivo `config.json` para o mesmo diretório do `.exe`.
+O script:
 
----
+- instala as dependências de build
+- usa uma unidade virtual temporária para evitar erro de caminho grande no Windows
+- gera a pasta `dist\CIEBP_Descanso_de_Tela\`
+- copia `assets` e `config.json` junto com o executável
 
-## Estrutura do projeto
+Depois disso, distribua a **pasta inteira**:
 
-```
-descanso-ciebp/
-├── main.py            # Código principal (launcher + tela cheia)
-├── config.json        # Configurações do evento (editável)
-├── requirements.txt   # Dependências Python
-├── build.bat          # Script para gerar o executável com PyInstaller
-└── assets/
-    ├── LEIA-ME.md                      # Instruções sobre as imagens
-    ├── Logo-colorido.png               # Logo institucional do CIEBP
-    ├── Futuro_em_Movimento_TAW.mp3     # Música de fundo padrão
-    ├── fundo1.png … fundo6.png         # Imagens de fundo dos espaços
-    └── (demais imagens por espaço)
+```text
+dist\CIEBP_Descanso_de_Tela\
 ```
 
----
+No computador de destino, basta executar:
 
-## Configuração (`config.json`)
+```text
+CIEBP_Descanso_de_Tela.exe
+```
 
-Todos os parâmetros do evento são editáveis diretamente no `config.json` ou pela janela de configuração do próprio programa:
+## Configuração
+
+O arquivo `config.json` guarda os valores padrão usados pelo launcher e pela tela.
+
+Exemplo:
 
 ```json
 {
   "evento": "Nome do Evento",
-  "data": "dd/mm/aaaa",
-  "mensagem_boas_vindas": "Texto exibido na tela de recepção.",
+  "data": "19/08/2026",
+  "mensagem_boas_vindas": "Texto exibido na tela principal.",
   "professores": ["Prof. Nome", "Profa. Nome"],
-  "espaco_padrao": "Cultura Digital",
+  "espaco_padrao": "Robótica e Modelagem",
   "radio_padrao": "Música local (MP3)",
   "volume_padrao": 60,
-  "audio_local": "assets\\nome_do_arquivo.mp3"
+  "audio_local": "assets\\arquivo.mp3",
+  "fundo_padrao": "Ilha do Pescador"
 }
 ```
 
----
+## Observações
 
-## Imagens de fundo
-
-Coloque imagens em `assets/` com as especificações abaixo e mapeie-as no `config.json`:
-
-- **Resolução mínima:** 1920 × 1080 px (Full HD)
-- **Formato:** PNG ou JPG
-- **Orientação:** paisagem (horizontal)
-
-Se uma imagem não for encontrada, o programa gera automaticamente um fundo em degradê escuro na cor de destaque do espaço.
-
----
-
-## Licença
-
-Este projeto está licenciado sob a [MIT License](LICENSE).
-
----
+- O projeto foi pensado para uso em ambiente Windows.
+- Se o áudio não puder usar o backend principal, o sistema tenta alternativas compatíveis.
+- O fundo animado do pescador é desenhado por código, então não depende de imagem de fundo extra.
 
 ## Autor
 
 **Júlio César Valera**  
-Professor — Rede Estadual de São Paulo · CIEBP  
-[juliovalera@professor.educacao.sp.gov.br](mailto:juliovalera@professor.educacao.sp.gov.br)
+Professor - Rede Estadual de São Paulo  
+CIEBP  
+`juliovalera@professor.educacao.sp.gov.br`
