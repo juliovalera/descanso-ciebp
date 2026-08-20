@@ -18,12 +18,17 @@ Ela mostra relógio em tempo real, dados do evento, mensagem de boas-vindas, rep
 
 - **Áudio local mais estável** com `pygame-ce`, com fallback para Windows Media Player e PowerShell quando necessário.
 - **Avisos animados** com confetes e foguetes nos horários programados.
-- **Fundo “Ilha do Pescador”** com:
+- **Melhorias de legibilidade** nos textos da tela principal.
+- **Fundo "Ilha do Pescador"** com:
   - sol se movimentando conforme o horário do dia
   - reflexo do sol acompanhando a água
   - pescador com animações calmas
-  - peixe ou bota aparecendo visualmente quando há captura
-- **Melhorias de legibilidade** nos textos da tela principal.
+  - pescarias engraçadas com peixe, peixinho, bota, bigorna e pneu
+  - item arremessado para a ilha e exibido no chão
+  - gaivota que pode levar o peixe embora
+  - tubarão lento no mar
+  - caranguejo que sobe pela ilha
+  - pescador fugindo para o meio da ilha quando o tubarão se aproxima
 
 ## Horários dos avisos
 
@@ -68,14 +73,44 @@ python main.py
 2. Preencha ou ajuste os dados do evento.
 3. Escolha o espaço, o fundo e o áudio.
 4. Se quiser, use o botão de teste de aviso.
-5. Clique em `Iniciar tela de espera`.
-6. Para sair da tela cheia, pressione `Esc`.
+5. Ajuste o intervalo do tubarão se desejar.
+6. Clique em `Iniciar tela de espera`.
+7. Para sair da tela cheia, pressione `Esc`.
 
 ## Fundos disponíveis
 
 - `Padrão do espaço`
-- `Fundo 1` a `Fundo 6` (quando os arquivos existirem em `assets/`)
+- `Fundo 1` a `Fundo 6` quando os arquivos existirem em `assets/`
 - `Ilha do Pescador`
+
+## Fundo Ilha do Pescador
+
+O fundo animado da ilha é desenhado por código e não depende de imagem extra.
+
+Ele inclui:
+
+- variação de céu, mar e sol ao longo do dia
+- pescador no trapiche
+- arremesso do item pescado para a areia da ilha
+- tubarão no mar com intervalo configurável
+- caranguejo na areia usando o mesmo intervalo configurado do tubarão
+- gaivota que pode levar o peixe embora
+
+## Configuração do tubarão
+
+No launcher existe um campo para definir o intervalo do tubarão em minutos.
+
+- Se o valor for `10`, o tubarão reaparece aproximadamente nesse intervalo.
+- Se o valor for `0`, o tubarão fica desativado.
+- O caranguejo usa esse mesmo intervalo base, com pequena defasagem para não coincidir exatamente.
+
+No `config.json`, o valor correspondente é:
+
+```json
+{
+  "intervalo_tubarao_minutos": 10
+}
+```
 
 ## Estrutura do projeto
 
@@ -134,14 +169,15 @@ Exemplo:
 ```json
 {
   "evento": "Nome do Evento",
-  "data": "19/08/2026",
+  "data": "20/08/2026",
   "mensagem_boas_vindas": "Texto exibido na tela principal.",
   "professores": ["Prof. Nome", "Profa. Nome"],
   "espaco_padrao": "Robótica e Modelagem",
   "radio_padrao": "Música local (MP3)",
   "volume_padrao": 60,
   "audio_local": "assets\\arquivo.mp3",
-  "fundo_padrao": "Ilha do Pescador"
+  "fundo_padrao": "Ilha do Pescador",
+  "intervalo_tubarao_minutos": 10
 }
 ```
 
@@ -150,6 +186,7 @@ Exemplo:
 - O projeto foi pensado para uso em ambiente Windows.
 - Se o áudio não puder usar o backend principal, o sistema tenta alternativas compatíveis.
 - O fundo animado do pescador é desenhado por código, então não depende de imagem de fundo extra.
+- O `README` pode evoluir junto com a cena animada, já que esse fundo tem recebido refinamentos frequentes.
 
 ## Autor
 
