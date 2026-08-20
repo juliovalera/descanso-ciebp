@@ -171,6 +171,9 @@ class JanelaConfig(tk.Tk):
         self.var_audio_local = tk.StringVar(value=config.get("audio_local", ""))
         self.var_fundo = tk.StringVar(value=config.get("fundo_padrao", "Padrão do espaço"))
         self.var_alerta_teste = tk.StringVar(value="Aviso de almoço")
+        self.var_intervalo_tubarao = tk.StringVar(
+            value=str(config.get("intervalo_tubarao_minutos", 10))
+        )
 
         self.title("CIEBP - Descanso de Tela")
         self.resizable(False, True)
@@ -392,6 +395,45 @@ class JanelaConfig(tk.Tk):
             height=8
         )
         self.combo_fundo.pack(fill="x", ipady=4)
+
+        frame_tubarao = tk.Frame(F, bg="#0D1B2A")
+        frame_tubarao.pack(fill="x", padx=30, pady=(0, 6))
+
+        tk.Label(
+            frame_tubarao,
+            text="Intervalo do tubarão",
+            font=("Segoe UI", 11, "bold"),
+            fg="#E3EDF5",
+            bg="#0D1B2A",
+            anchor="w"
+        ).pack(fill="x", pady=(0, 3))
+
+        tk.Label(
+            frame_tubarao,
+            text="Informe em minutos. Esse ajuste vale para o fundo Ilha do Pescador. Se colocar 0, o tubarão fica desativado.",
+            font=("Segoe UI", 8),
+            fg="#7E94A8",
+            bg="#0D1B2A",
+            anchor="w",
+            justify="left",
+            wraplength=500,
+        ).pack(fill="x", pady=(0, 2))
+
+        self._entry_tubarao = tk.Entry(
+            frame_tubarao,
+            textvariable=self.var_intervalo_tubarao,
+            font=("Segoe UI", 11),
+            bg="#132336",
+            fg="#ECEFF1",
+            insertbackground="#ECEFF1",
+            relief="flat",
+            bd=0,
+            highlightthickness=1,
+            highlightbackground="#1E3A5F",
+            highlightcolor="#00BCD4",
+        )
+        self._entry_tubarao.pack(fill="x", ipady=4)
+        self._entry_tubarao.bind("<MouseWheel>", _on_wheel)
 
         # --- Seleção de Rádio ---
         frame_radio = tk.Frame(F, bg="#0D1B2A")
@@ -627,6 +669,11 @@ class JanelaConfig(tk.Tk):
         profs_raw = self.var_professores.get()
         self.config_dados["professores"] = [p.strip() for p in profs_raw.split(",") if p.strip()]
         self.config_dados["mensagem_boas_vindas"] = self.var_mensagem.get().strip()
+        try:
+            intervalo_tubarao = max(0, int(float(self.var_intervalo_tubarao.get().strip() or "10")))
+        except ValueError:
+            intervalo_tubarao = 10
+        self.config_dados["intervalo_tubarao_minutos"] = intervalo_tubarao
 
         espaco = self.espaco_escolhido.get()
         radio = self.radio_escolhida.get()
@@ -884,6 +931,25 @@ class DescansoTela(tk.Tk):
         comp = [int(a + (b - a) * fator) for a, b in zip(c1, c2)]
         return "#{:02X}{:02X}{:02X}".format(*comp)
 
+    def _obter_intervalo_tubarao_segundos(self):
+        """Retorna o intervalo configurado do tubarão em segundos."""
+        try:
+            minutos = float(self.config_dados.get("intervalo_tubarao_minutos", 10))
+        except (TypeError, ValueError):
+            minutos = 10
+        minutos = max(0.0, minutos)
+        if minutos == 0:
+            return None
+        return minutos * 60
+
+    def _aproximar_valor(self, atual, alvo, passo):
+        """Aproxima um valor do alvo sem ultrapassar."""
+        if atual < alvo:
+            return min(alvo, atual + passo)
+        if atual > alvo:
+            return max(alvo, atual - passo)
+        return atual
+
     def _obter_estado_solar(self, agora, larg, alt):
         """Calcula céu, mar e posição do sol conforme o horário."""
         minutos = agora.hour * 60 + agora.minute + agora.second / 60
@@ -994,23 +1060,35 @@ class DescansoTela(tk.Tk):
             int(larg * 0.3), int(alt * 0.84),
             fill="#CFAE72", outline="", tags=tags
         )
+        coqueiro_offset_x = -20
+        coqueiro_topo_x = int(larg * 0.24) + coqueiro_offset_x
+        coqueiro_topo_y = int(alt * 0.56)
+        coqueiro_base_x = int(larg * 0.21) + coqueiro_offset_x
+        coqueiro_base_y = int(alt * 0.73)
         coqueiro_tronco = self.canvas.create_line(
-            int(larg * 0.21), int(alt * 0.73),
-            int(larg * 0.24), int(alt * 0.56),
+            coqueiro_base_x, coqueiro_base_y,
+            coqueiro_topo_x, coqueiro_topo_y,
             fill="#6A3D1A", width=8, smooth=True, tags=tags
         )
         folhas = []
-        for pontos in [
-            (0.24, 0.56, 0.19, 0.51, 0.16, 0.45),
-            (0.24, 0.56, 0.24, 0.49, 0.19, 0.43),
-            (0.24, 0.56, 0.29, 0.49, 0.34, 0.46),
-            (0.24, 0.56, 0.31, 0.55, 0.36, 0.55),
+        for pontos, cor, largura in [
+            ((0, 0, -16, -10, -34, -18, -52, -38), "#36D977", 5),
+            ((0, 0, -6, -14, -18, -34, -42, -58), "#45E082", 4),
+            ((0, 0, 10, -15, 20, -34, 24, -58), "#49E786", 4),
+            ((0, 0, 22, -8, 40, -18, 58, -26), "#36D977", 5),
+            ((0, 0, 18, 6, 34, 10, 50, 8), "#2FCB6C", 4),
+            ((0, 0, -10, 8, -26, 14, -42, 12), "#2ABF64", 4),
+            ((0, 0, -2, -6, 6, -20, 14, -36), "#5AF094", 3),
         ]:
+            coords = []
+            for indice in range(0, len(pontos), 2):
+                coords.extend((
+                    coqueiro_topo_x + pontos[indice],
+                    coqueiro_topo_y + pontos[indice + 1],
+                ))
             folhas.append(self.canvas.create_line(
-                int(larg * pontos[0]), int(alt * pontos[1]),
-                int(larg * pontos[2]), int(alt * pontos[3]),
-                int(larg * pontos[4]), int(alt * pontos[5]),
-                fill="#2ECC71", width=4, smooth=True, tags=tags
+                *coords,
+                fill=cor, width=largura, smooth=True, splinesteps=24, tags=tags
             ))
 
         trapiche = self.canvas.create_polygon(
@@ -1043,11 +1121,70 @@ class DescansoTela(tk.Tk):
             "captura_peixe_olho": self.canvas.create_oval(0, 0, 0, 0, fill="#163040", outline="", state="hidden", tags=tags),
             "captura_bota_cano": self.canvas.create_polygon(0, 0, 0, 0, 0, 0, 0, 0, fill="#FFD28A", outline="#FFF1CC", width=2, state="hidden", tags=tags),
             "captura_bota_sola": self.canvas.create_polygon(0, 0, 0, 0, 0, 0, 0, 0, fill="#C48A53", outline="#FFF1CC", width=2, state="hidden", tags=tags),
+            "captura_bigorna_base": self.canvas.create_polygon(0, 0, 0, 0, 0, 0, 0, 0, fill="#8D9AA6", outline="#D8E0E6", width=2, state="hidden", tags=tags),
+            "captura_bigorna_topo": self.canvas.create_polygon(0, 0, 0, 0, 0, 0, 0, 0, fill="#A7B3BD", outline="#D8E0E6", width=2, state="hidden", tags=tags),
+            "captura_pneu_externo": self.canvas.create_oval(0, 0, 0, 0, fill="#2E3640", outline="#717B86", width=2, state="hidden", tags=tags),
+            "captura_pneu_interno": self.canvas.create_oval(0, 0, 0, 0, fill="#0D1B2A", outline="", state="hidden", tags=tags),
+        }
+        trofeu_ilha = {
+            "peixe_corpo": self.canvas.create_oval(0, 0, 0, 0, fill="#7DFF9B", outline="#DFFFEA", width=2, state="hidden", tags=tags),
+            "peixe_cauda": self.canvas.create_polygon(0, 0, 0, 0, 0, 0, fill="#55D68C", outline="#DFFFEA", width=2, state="hidden", tags=tags),
+            "peixe_olho": self.canvas.create_oval(0, 0, 0, 0, fill="#163040", outline="", state="hidden", tags=tags),
+            "bota_cano": self.canvas.create_polygon(0, 0, 0, 0, 0, 0, 0, 0, fill="#FFD28A", outline="#FFF1CC", width=2, state="hidden", tags=tags),
+            "bota_sola": self.canvas.create_polygon(0, 0, 0, 0, 0, 0, 0, 0, fill="#C48A53", outline="#FFF1CC", width=2, state="hidden", tags=tags),
+            "bigorna_base": self.canvas.create_polygon(0, 0, 0, 0, 0, 0, 0, 0, fill="#8D9AA6", outline="#D8E0E6", width=2, state="hidden", tags=tags),
+            "bigorna_topo": self.canvas.create_polygon(0, 0, 0, 0, 0, 0, 0, 0, fill="#A7B3BD", outline="#D8E0E6", width=2, state="hidden", tags=tags),
+            "pneu_externo": self.canvas.create_oval(0, 0, 0, 0, fill="#2E3640", outline="#717B86", width=2, state="hidden", tags=tags),
+            "pneu_interno": self.canvas.create_oval(0, 0, 0, 0, fill="#0D1B2A", outline="", state="hidden", tags=tags),
         }
 
         ondas = []
         for frac, amp in ((0.52, 0.16), (0.67, 0.13), (0.8, 0.11)):
             ondas.append(self.canvas.create_line(0, 0, 0, 0, fill="#89D4FF", width=2, smooth=True, tags=tags))
+
+        tubarao = {
+            "corpo": self.canvas.create_polygon(
+                0, 0, 0, 0, 0, 0,
+                fill="#163A50", outline="#2A5970", width=2,
+                smooth=True, splinesteps=24, state="hidden", tags=tags
+            ),
+            "barbatana": self.canvas.create_polygon(
+                0, 0, 0, 0, 0, 0,
+                fill="#1E4C65", outline="#2A5970", width=2,
+                smooth=True, state="hidden", tags=tags
+            ),
+            "cauda": self.canvas.create_polygon(
+                0, 0, 0, 0, 0, 0, 0, 0,
+                fill="#173E56", outline="#2A5970", width=2,
+                smooth=True, state="hidden", tags=tags
+            ),
+        }
+        gaivota = {
+            "asa_esq": self.canvas.create_line(0, 0, 0, 0, 0, 0, fill="#F5F7FA", width=3, smooth=True, state="hidden", tags=tags),
+            "asa_dir": self.canvas.create_line(0, 0, 0, 0, 0, 0, fill="#F5F7FA", width=3, smooth=True, state="hidden", tags=tags),
+            "corpo": self.canvas.create_oval(0, 0, 0, 0, fill="#FFFFFF", outline="#D3DAE2", width=1, state="hidden", tags=tags),
+            "cabeca": self.canvas.create_oval(0, 0, 0, 0, fill="#FFFFFF", outline="#D3DAE2", width=1, state="hidden", tags=tags),
+            "bico": self.canvas.create_polygon(0, 0, 0, 0, 0, 0, fill="#F7B844", outline="#FDE7AE", width=1, state="hidden", tags=tags),
+            "olho": self.canvas.create_oval(0, 0, 0, 0, fill="#163040", outline="", state="hidden", tags=tags),
+            "carga_peixe_corpo": self.canvas.create_oval(0, 0, 0, 0, fill="#7DFF9B", outline="#DFFFEA", width=1, state="hidden", tags=tags),
+            "carga_peixe_cauda": self.canvas.create_polygon(0, 0, 0, 0, 0, 0, fill="#55D68C", outline="#DFFFEA", width=1, state="hidden", tags=tags),
+            "carga_peixe_olho": self.canvas.create_oval(0, 0, 0, 0, fill="#163040", outline="", state="hidden", tags=tags),
+        }
+        caranguejo = {
+            "corpo": self.canvas.create_oval(0, 0, 0, 0, fill="#E85A47", outline="#FFC2A6", width=2, state="hidden", tags=tags),
+            "garra_esq": self.canvas.create_polygon(0, 0, 0, 0, 0, 0, fill="#F26B56", outline="#FFC2A6", width=2, state="hidden", tags=tags),
+            "garra_dir": self.canvas.create_polygon(0, 0, 0, 0, 0, 0, fill="#F26B56", outline="#FFC2A6", width=2, state="hidden", tags=tags),
+            "perna1": self.canvas.create_line(0, 0, 0, 0, 0, 0, fill="#C94736", width=2, smooth=True, state="hidden", tags=tags),
+            "perna2": self.canvas.create_line(0, 0, 0, 0, 0, 0, fill="#C94736", width=2, smooth=True, state="hidden", tags=tags),
+            "perna3": self.canvas.create_line(0, 0, 0, 0, 0, 0, fill="#C94736", width=2, smooth=True, state="hidden", tags=tags),
+            "perna4": self.canvas.create_line(0, 0, 0, 0, 0, 0, fill="#C94736", width=2, smooth=True, state="hidden", tags=tags),
+            "olho_esq": self.canvas.create_line(0, 0, 0, 0, fill="#FFD7C7", width=2, state="hidden", tags=tags),
+            "olho_dir": self.canvas.create_line(0, 0, 0, 0, fill="#FFD7C7", width=2, state="hidden", tags=tags),
+            "pupila_esq": self.canvas.create_oval(0, 0, 0, 0, fill="#1E232A", outline="", state="hidden", tags=tags),
+            "pupila_dir": self.canvas.create_oval(0, 0, 0, 0, fill="#1E232A", outline="", state="hidden", tags=tags),
+        }
+
+        intervalo_tubarao = self._obter_intervalo_tubarao_segundos()
 
         self._pescador_cena = {
             "larg": larg,
@@ -1068,17 +1205,161 @@ class DescansoTela(tk.Tk):
             "ondas": ondas,
             "ripples": agua_ripples,
             "pescador": pescador,
+            "trofeu_ilha": trofeu_ilha,
+            "tubarao": tubarao,
+            "gaivota": gaivota,
+            "caranguejo": caranguejo,
             "base_x": int(larg * 0.4),
             "base_y": int(alt * 0.69),
+            "pescador_x": float(int(larg * 0.4)),
+            "pescador_y": float(int(alt * 0.69)),
+            "refugio_x": float(int(larg * 0.24)),
+            "refugio_y": float(int(alt * 0.73)),
+            "pescador_modo": "pescando",
             "estado": "idle",
+            "evento_inicio": time.time(),
             "evento_ate": time.time() + random.uniform(14, 22),
             "proximo_evento": time.time() + random.uniform(18, 30),
             "captura_tipo": "",
+            "trofeu_tipo": "",
+            "trofeu_instante": 0.0,
+            "trofeu_x": int(larg * 0.205),
+            "trofeu_y": int(alt * 0.79),
+            "gaivota_ativa": False,
+            "gaivota_inicio": 0.0,
+            "gaivota_duracao": 0.0,
+            "gaivota_pouso": 0.0,
+            "tubarao_ativo": False,
+            "tubarao_inicio": 0.0,
+            "tubarao_duracao": 0.0,
+            "tubarao_sentido": 1,
+            "tubarao_base_y": alt * 0.8,
+            "tubarao_escala": 1.0,
+            "tubarao_fase": 0.0,
+            "tubarao_x": None,
+            "tubarao_y": None,
+            "proximo_tubarao": (time.time() + intervalo_tubarao) if intervalo_tubarao else float("inf"),
+            "caranguejo_ativo": False,
+            "caranguejo_inicio": 0.0,
+            "caranguejo_duracao": 0.0,
+            "caranguejo_x": None,
+            "caranguejo_y": None,
+            "proximo_caranguejo": (time.time() + (intervalo_tubarao * 0.5)) if intervalo_tubarao else float("inf"),
         }
 
         self._atualizar_cena_pescador(datetime.now(), time.time())
         self._animacao_pescador_ativa = True
         self._animacao_pescador_after = self.after(120, self._loop_animacao_pescador)
+
+    def _ocultar_forma_captura(self, grupo):
+        """Esconde as formas visuais de peixe e bota."""
+        for chave in (
+            "peixe_corpo", "peixe_cauda", "peixe_olho",
+            "bota_cano", "bota_sola",
+            "bigorna_base", "bigorna_topo",
+            "pneu_externo", "pneu_interno",
+            "carga_peixe_corpo", "carga_peixe_cauda", "carga_peixe_olho",
+        ):
+            if chave in grupo:
+                self.canvas.itemconfig(grupo[chave], state="hidden")
+
+    def _desenhar_forma_captura(self, grupo, tipo, x, y, escala=1.0):
+        """Desenha peixe ou objetos engraçados em uma posição específica."""
+        self._ocultar_forma_captura(grupo)
+
+        if tipo == "bota":
+            self.canvas.coords(
+                grupo["bota_cano"],
+                x - 14 * escala, y - 30 * escala,
+                x + 6 * escala, y - 30 * escala,
+                x + 6 * escala, y + 2 * escala,
+                x - 14 * escala, y + 2 * escala,
+            )
+            self.canvas.coords(
+                grupo["bota_sola"],
+                x - 18 * escala, y + 2 * escala,
+                x + 12 * escala, y + 2 * escala,
+                x + 18 * escala, y + 12 * escala,
+                x - 18 * escala, y + 12 * escala,
+            )
+            self.canvas.itemconfig(grupo["bota_cano"], state="normal")
+            self.canvas.itemconfig(grupo["bota_sola"], state="normal")
+            return
+
+        if tipo == "bigorna":
+            self.canvas.coords(
+                grupo["bigorna_topo"],
+                x - 18 * escala, y - 20 * escala,
+                x + 16 * escala, y - 20 * escala,
+                x + 22 * escala, y - 8 * escala,
+                x - 10 * escala, y - 8 * escala,
+            )
+            self.canvas.coords(
+                grupo["bigorna_base"],
+                x - 10 * escala, y - 8 * escala,
+                x + 8 * escala, y - 8 * escala,
+                x + 16 * escala, y + 14 * escala,
+                x - 24 * escala, y + 14 * escala,
+            )
+            self.canvas.itemconfig(grupo["bigorna_topo"], state="normal")
+            self.canvas.itemconfig(grupo["bigorna_base"], state="normal")
+            return
+
+        if tipo == "pneu":
+            self.canvas.coords(
+                grupo["pneu_externo"],
+                x - 18 * escala, y - 18 * escala,
+                x + 18 * escala, y + 18 * escala,
+            )
+            self.canvas.coords(
+                grupo["pneu_interno"],
+                x - 8 * escala, y - 8 * escala,
+                x + 8 * escala, y + 8 * escala,
+            )
+            self.canvas.itemconfig(grupo["pneu_externo"], state="normal")
+            self.canvas.itemconfig(grupo["pneu_interno"], state="normal")
+            return
+
+        if tipo == "peixinho":
+            meio = 12 * escala
+            altura = 8 * escala
+            corpo_cor = "#9BE7FF"
+            cauda_cor = "#69D8F6"
+            outline = "#EAFBFF"
+            olho = 4 * escala
+            olho_x = 6 * escala
+            cauda_dx = 14 * escala
+            cauda_dy = 10 * escala
+        else:
+            meio = 18 * escala
+            altura = 12 * escala
+            corpo_cor = "#7DFF9B"
+            cauda_cor = "#55D68C"
+            outline = "#E5FFEF"
+            olho = 5 * escala
+            olho_x = 8 * escala
+            cauda_dx = 18 * escala
+            cauda_dy = 14 * escala
+
+        self.canvas.coords(
+            grupo["peixe_corpo"],
+            x - meio, y - altura,
+            x + meio, y + altura,
+        )
+        self.canvas.coords(
+            grupo["peixe_cauda"],
+            x + meio - 2 * escala, y,
+            x + meio + cauda_dx, y - cauda_dy,
+            x + meio + cauda_dx, y + cauda_dy,
+        )
+        self.canvas.coords(
+            grupo["peixe_olho"],
+            x - olho_x, y - olho / 2,
+            x - olho_x + olho, y + olho / 2,
+        )
+        self.canvas.itemconfig(grupo["peixe_corpo"], fill=corpo_cor, outline=outline, state="normal")
+        self.canvas.itemconfig(grupo["peixe_cauda"], fill=cauda_cor, outline=outline, state="normal")
+        self.canvas.itemconfig(grupo["peixe_olho"], state="normal")
 
     def _atualizar_cena_pescador(self, agora, agora_ts):
         """Atualiza o fundo animado da ilha do pescador."""
@@ -1166,57 +1447,353 @@ class DescansoTela(tk.Tk):
                 pontos.extend((x, y))
             self.canvas.coords(item, *pontos)
 
-        estado = cena["estado"]
-        if estado == "idle" and agora_ts >= cena["proximo_evento"]:
-            cena["estado"] = "puxando"
-            cena["evento_ate"] = agora_ts + random.uniform(2.8, 4.0)
-            cena["captura_tipo"] = random.choice(["peixe", "bota", "peixinho"])
-        elif estado == "puxando" and agora_ts >= cena["evento_ate"]:
-            cena["estado"] = "mostrando"
-            cena["evento_ate"] = agora_ts + random.uniform(2.4, 3.2)
-        elif estado == "mostrando" and agora_ts >= cena["evento_ate"]:
+        tubarao = cena["tubarao"]
+        intervalo_tubarao = self._obter_intervalo_tubarao_segundos()
+        if intervalo_tubarao is None:
+            cena["proximo_tubarao"] = float("inf")
+
+        if (not cena["tubarao_ativo"]) and agora_ts >= cena["proximo_tubarao"]:
+            cena["tubarao_ativo"] = True
+            cena["tubarao_inicio"] = agora_ts
+            cena["tubarao_duracao"] = random.uniform(34.0, 42.0)
+            cena["tubarao_sentido"] = random.choice([-1, 1])
+            cena["tubarao_base_y"] = random.uniform(alt * 0.75, alt * 0.84)
+            cena["tubarao_escala"] = random.uniform(0.92, 1.1)
+            cena["tubarao_fase"] = random.uniform(0.0, math.tau)
+
+        if cena["tubarao_ativo"]:
+            progresso_tubarao = (agora_ts - cena["tubarao_inicio"]) / max(1.0, cena["tubarao_duracao"])
+            if progresso_tubarao >= 1.0:
+                cena["tubarao_ativo"] = False
+                cena["proximo_tubarao"] = (agora_ts + intervalo_tubarao) if intervalo_tubarao else float("inf")
+                cena["tubarao_x"] = None
+                cena["tubarao_y"] = None
+                self.canvas.itemconfig(tubarao["corpo"], state="hidden")
+                self.canvas.itemconfig(tubarao["barbatana"], state="hidden")
+                self.canvas.itemconfig(tubarao["cauda"], state="hidden")
+            else:
+                escala = cena["tubarao_escala"]
+                # Mantém o tubarão apenas na área livre do mar, sem alcançar
+                # a região da ilha, do trapiche e do pescador.
+                faixa_inicio = max(larg * 0.60, cena["base_x"] + 240 * escala)
+                faixa_fim = larg * 0.98
+                x_esquerda = faixa_inicio + 26 * escala
+                x_direita = faixa_fim - 92 * escala
+                sentido_inicial = cena["tubarao_sentido"]
+
+                if sentido_inicial > 0:
+                    inicio_x = x_esquerda
+                    retorno_x = x_direita
+                else:
+                    inicio_x = x_direita
+                    retorno_x = x_esquerda
+
+                if progresso_tubarao < 0.5:
+                    trecho = progresso_tubarao * 2
+                    tub_x = inicio_x + (retorno_x - inicio_x) * trecho
+                    sentido = 1 if retorno_x > inicio_x else -1
+                else:
+                    trecho = (progresso_tubarao - 0.5) * 2
+                    tub_x = retorno_x + (inicio_x - retorno_x) * trecho
+                    sentido = 1 if inicio_x > retorno_x else -1
+
+                fase_tub = cena["tubarao_fase"] + progresso_tubarao * math.tau * 1.8
+                tub_y = cena["tubarao_base_y"] + math.sin(fase_tub) * (18 * escala)
+                corpo_dx = sentido * 70 * escala
+                corpo_dy = math.cos(fase_tub) * 2.5
+                cena["tubarao_x"] = tub_x
+                cena["tubarao_y"] = tub_y
+
+                self.canvas.coords(
+                    tubarao["corpo"],
+                    tub_x + corpo_dx, tub_y + corpo_dy,
+                    tub_x + sentido * 18 * escala, tub_y - 22 * escala,
+                    tub_x - sentido * 28 * escala, tub_y - 18 * escala,
+                    tub_x - sentido * 52 * escala, tub_y - 7 * escala,
+                    tub_x - sentido * 52 * escala, tub_y + 7 * escala,
+                    tub_x - sentido * 28 * escala, tub_y + 18 * escala,
+                    tub_x + sentido * 18 * escala, tub_y + 22 * escala,
+                )
+                self.canvas.coords(
+                    tubarao["barbatana"],
+                    tub_x - sentido * 10 * escala, tub_y - 8 * escala,
+                    tub_x - sentido * 24 * escala, tub_y - 46 * escala,
+                    tub_x + sentido * 8 * escala, tub_y - 12 * escala,
+                )
+                self.canvas.coords(
+                    tubarao["cauda"],
+                    tub_x - sentido * 50 * escala, tub_y,
+                    tub_x - sentido * 82 * escala, tub_y - 22 * escala,
+                    tub_x - sentido * 68 * escala, tub_y - 2 * escala,
+                    tub_x - sentido * 82 * escala, tub_y + 22 * escala,
+                )
+                self.canvas.itemconfig(tubarao["corpo"], state="normal")
+                self.canvas.itemconfig(tubarao["barbatana"], state="normal")
+                self.canvas.itemconfig(tubarao["cauda"], state="normal")
+        else:
+            cena["tubarao_x"] = None
+            cena["tubarao_y"] = None
+            self.canvas.itemconfig(tubarao["corpo"], state="hidden")
+            self.canvas.itemconfig(tubarao["barbatana"], state="hidden")
+            self.canvas.itemconfig(tubarao["cauda"], state="hidden")
+
+        caranguejo = cena["caranguejo"]
+        if intervalo_tubarao is None:
+            cena["proximo_caranguejo"] = float("inf")
+
+        if (not cena["caranguejo_ativo"]) and agora_ts >= cena["proximo_caranguejo"]:
+            cena["caranguejo_ativo"] = True
+            cena["caranguejo_inicio"] = agora_ts
+            cena["caranguejo_duracao"] = random.uniform(16.0, 22.0)
+
+        if cena["caranguejo_ativo"]:
+            progresso_caranguejo = (agora_ts - cena["caranguejo_inicio"]) / max(1.0, cena["caranguejo_duracao"])
+            if progresso_caranguejo >= 1.0:
+                cena["caranguejo_ativo"] = False
+                cena["caranguejo_x"] = None
+                cena["caranguejo_y"] = None
+                cena["proximo_caranguejo"] = (agora_ts + intervalo_tubarao) if intervalo_tubarao else float("inf")
+                for chave in caranguejo:
+                    self.canvas.itemconfig(caranguejo[chave], state="hidden")
+            else:
+                inicio_x = int(larg * 0.11)
+                fim_x = int(larg * 0.19)
+                crab_x = inicio_x + (fim_x - inicio_x) * progresso_caranguejo
+                crab_y = int(alt * 0.80) - math.sin(progresso_caranguejo * math.pi * 3.2) * 5
+                cena["caranguejo_x"] = crab_x
+                cena["caranguejo_y"] = crab_y
+                pulso = math.sin(agora_ts * 8)
+                garra = 8 + pulso * 2
+                passo = math.sin(agora_ts * 12) * 3
+
+                self.canvas.coords(caranguejo["corpo"], crab_x - 16, crab_y - 9, crab_x + 16, crab_y + 9)
+                self.canvas.coords(
+                    caranguejo["garra_esq"],
+                    crab_x - 12, crab_y - 2,
+                    crab_x - 24 - garra, crab_y - 12,
+                    crab_x - 18, crab_y + 4,
+                )
+                self.canvas.coords(
+                    caranguejo["garra_dir"],
+                    crab_x + 12, crab_y - 2,
+                    crab_x + 24 + garra, crab_y - 12,
+                    crab_x + 18, crab_y + 4,
+                )
+                self.canvas.coords(caranguejo["perna1"], crab_x - 8, crab_y + 5, crab_x - 18, crab_y + 12 + passo, crab_x - 26, crab_y + 16)
+                self.canvas.coords(caranguejo["perna2"], crab_x - 2, crab_y + 6, crab_x - 8, crab_y + 16 - passo, crab_x - 14, crab_y + 20)
+                self.canvas.coords(caranguejo["perna3"], crab_x + 2, crab_y + 6, crab_x + 8, crab_y + 16 + passo, crab_x + 14, crab_y + 20)
+                self.canvas.coords(caranguejo["perna4"], crab_x + 8, crab_y + 5, crab_x + 18, crab_y + 12 - passo, crab_x + 26, crab_y + 16)
+                self.canvas.coords(caranguejo["olho_esq"], crab_x - 6, crab_y - 4, crab_x - 8, crab_y - 13)
+                self.canvas.coords(caranguejo["olho_dir"], crab_x + 6, crab_y - 4, crab_x + 8, crab_y - 13)
+                self.canvas.coords(caranguejo["pupila_esq"], crab_x - 10, crab_y - 15, crab_x - 6, crab_y - 11)
+                self.canvas.coords(caranguejo["pupila_dir"], crab_x + 6, crab_y - 15, crab_x + 10, crab_y - 11)
+                for chave in caranguejo:
+                    self.canvas.itemconfig(caranguejo[chave], state="normal")
+        else:
+            cena["caranguejo_x"] = None
+            cena["caranguejo_y"] = None
+            for chave in caranguejo:
+                self.canvas.itemconfig(caranguejo[chave], state="hidden")
+
+        tubarao_perto = (
+            cena["tubarao_x"] is not None
+            and abs(cena["tubarao_x"] - cena["base_x"]) < 310
+            and abs(cena["tubarao_y"] - cena["base_y"]) < 165
+        )
+        tubarao_longe = (
+            cena["tubarao_x"] is None
+            or abs(cena["tubarao_x"] - cena["base_x"]) > 430
+            or abs(cena["tubarao_y"] - cena["base_y"]) > 230
+        )
+        if tubarao_perto and cena["pescador_modo"] != "fugindo":
+            cena["pescador_modo"] = "fugindo"
             cena["estado"] = "idle"
             cena["captura_tipo"] = ""
+        elif tubarao_longe and cena["pescador_modo"] == "fugindo":
+            cena["pescador_modo"] = "voltando"
+
+        if cena["pescador_modo"] == "fugindo":
+            alvo_x = cena["refugio_x"]
+            alvo_y = cena["refugio_y"]
+        else:
+            alvo_x = cena["base_x"]
+            alvo_y = cena["base_y"]
+
+        cena["pescador_x"] = self._aproximar_valor(cena["pescador_x"], alvo_x, 7.5)
+        cena["pescador_y"] = self._aproximar_valor(cena["pescador_y"], alvo_y, 5.5)
+
+        if (
+            cena["pescador_modo"] == "voltando"
+            and abs(cena["pescador_x"] - cena["base_x"]) < 4
+            and abs(cena["pescador_y"] - cena["base_y"]) < 4
+        ):
+            cena["pescador_modo"] = "pescando"
+
+        gaivota = cena["gaivota"]
+        gaivota_carregando = False
+        if (
+            (not cena["gaivota_ativa"])
+            and cena["trofeu_tipo"] in {"peixe", "peixinho"}
+            and agora_ts >= cena["gaivota_pouso"]
+        ):
+            cena["gaivota_ativa"] = True
+            cena["gaivota_inicio"] = agora_ts
+            cena["gaivota_duracao"] = random.uniform(6.8, 8.4)
+
+        if cena["gaivota_ativa"]:
+            progresso_gaivota = (agora_ts - cena["gaivota_inicio"]) / max(0.1, cena["gaivota_duracao"])
+            if progresso_gaivota >= 1.0:
+                cena["gaivota_ativa"] = False
+                cena["gaivota_pouso"] = float("inf")
+                if cena["trofeu_tipo"] in {"peixe", "peixinho"}:
+                    cena["trofeu_tipo"] = ""
+                    cena["trofeu_instante"] = 0.0
+                self._ocultar_forma_captura(gaivota)
+                for chave in ("asa_esq", "asa_dir", "corpo", "cabeca", "bico", "olho"):
+                    self.canvas.itemconfig(gaivota[chave], state="hidden")
+            else:
+                ponto_inicio = (larg + 80, alt * 0.28)
+                ponto_pouso = (cena["trofeu_x"] + 18, cena["trofeu_y"] - 34)
+                ponto_saida = (-90, alt * 0.18)
+                fase_pega = 0.48
+                if progresso_gaivota < fase_pega:
+                    trecho = progresso_gaivota / fase_pega
+                    gaiv_x = ponto_inicio[0] + (ponto_pouso[0] - ponto_inicio[0]) * trecho
+                    gaiv_y = ponto_inicio[1] + (ponto_pouso[1] - ponto_inicio[1]) * trecho - math.sin(trecho * math.pi) * 18
+                else:
+                    trecho = (progresso_gaivota - fase_pega) / (1 - fase_pega)
+                    gaiv_x = ponto_pouso[0] + (ponto_saida[0] - ponto_pouso[0]) * trecho
+                    gaiv_y = ponto_pouso[1] + (ponto_saida[1] - ponto_pouso[1]) * trecho - math.sin(trecho * math.pi) * 42
+                    gaivota_carregando = cena["trofeu_tipo"] in {"peixe", "peixinho"}
+
+                batida_asa = math.sin(agora_ts * 12) * 11
+                self.canvas.coords(gaivota["corpo"], gaiv_x - 18, gaiv_y - 7, gaiv_x + 16, gaiv_y + 7)
+                self.canvas.coords(gaivota["cabeca"], gaiv_x - 24, gaiv_y - 6, gaiv_x - 12, gaiv_y + 6)
+                self.canvas.coords(gaivota["bico"], gaiv_x - 28, gaiv_y - 2, gaiv_x - 42, gaiv_y + 1, gaiv_x - 28, gaiv_y + 4)
+                self.canvas.coords(gaivota["olho"], gaiv_x - 21, gaiv_y - 2, gaiv_x - 19, gaiv_y, )
+                self.canvas.coords(
+                    gaivota["asa_esq"],
+                    gaiv_x - 4, gaiv_y - 2,
+                    gaiv_x + 12, gaiv_y - 18 - batida_asa,
+                    gaiv_x + 28, gaiv_y - 6,
+                )
+                self.canvas.coords(
+                    gaivota["asa_dir"],
+                    gaiv_x - 2, gaiv_y + 1,
+                    gaiv_x + 10, gaiv_y + 14 + batida_asa * 0.35,
+                    gaiv_x + 24, gaiv_y + 5,
+                )
+                for chave in ("asa_esq", "asa_dir", "corpo", "cabeca", "bico", "olho"):
+                    self.canvas.itemconfig(gaivota[chave], state="normal")
+                if gaivota_carregando:
+                    self._desenhar_forma_captura(
+                        {
+                            "peixe_corpo": gaivota["carga_peixe_corpo"],
+                            "peixe_cauda": gaivota["carga_peixe_cauda"],
+                            "peixe_olho": gaivota["carga_peixe_olho"],
+                        },
+                        cena["trofeu_tipo"],
+                        gaiv_x - 42,
+                        gaiv_y + 8,
+                        escala=0.55,
+                    )
+                else:
+                    self._ocultar_forma_captura(gaivota)
+        else:
+            self._ocultar_forma_captura(gaivota)
+            for chave in ("asa_esq", "asa_dir", "corpo", "cabeca", "bico", "olho"):
+                self.canvas.itemconfig(gaivota[chave], state="hidden")
+
+        estado = cena["estado"]
+        pode_pescar = cena["pescador_modo"] == "pescando"
+        if pode_pescar and estado == "idle" and agora_ts >= cena["proximo_evento"]:
+            cena["estado"] = "puxando"
+            cena["evento_inicio"] = agora_ts
+            cena["evento_ate"] = agora_ts + random.uniform(2.8, 4.0)
+            cena["captura_tipo"] = random.choice([
+                "peixe", "peixe", "peixinho",
+                "bota", "bigorna", "pneu",
+            ])
+        elif pode_pescar and estado == "puxando" and agora_ts >= cena["evento_ate"]:
+            cena["estado"] = "arremessando"
+            cena["evento_inicio"] = agora_ts
+            cena["evento_ate"] = agora_ts + random.uniform(1.8, 2.3)
+        elif pode_pescar and estado == "arremessando" and agora_ts >= cena["evento_ate"]:
+            cena["estado"] = "idle"
+            cena["trofeu_tipo"] = cena["captura_tipo"]
+            cena["trofeu_instante"] = agora_ts
+            cena["gaivota_pouso"] = (
+                agora_ts + random.uniform(4.2, 7.0)
+                if cena["trofeu_tipo"] in {"peixe", "peixinho"}
+                else float("inf")
+            )
+            cena["captura_tipo"] = ""
+            cena["evento_inicio"] = agora_ts
             cena["proximo_evento"] = agora_ts + random.uniform(16, 28)
 
         if cena["estado"] == "idle":
             progresso = math.sin(agora_ts * 1.4) * 0.5 + 0.5
-        elif cena["estado"] == "puxando":
-            progresso = min(1.0, max(0.0, 1 - ((cena["evento_ate"] - agora_ts) / 3.4)))
         else:
-            progresso = 1.0
+            duracao_evento = max(0.1, cena["evento_ate"] - cena["evento_inicio"])
+            progresso_evento = min(1.0, max(0.0, (agora_ts - cena["evento_inicio"]) / duracao_evento))
+            if cena["estado"] == "puxando":
+                progresso = progresso_evento
+            else:
+                progresso = 0.82
 
-        base_x = cena["base_x"]
-        base_y = cena["base_y"]
-        balanco = math.sin(agora_ts * 1.1) * 3
-        inclinacao = -12 - (18 * progresso if cena["estado"] != "idle" else 0)
+        base_x = cena["pescador_x"]
+        base_y = cena["pescador_y"]
+        andando = cena["pescador_modo"] in {"fugindo", "voltando"}
+        direcao_andando = -1 if cena["pescador_modo"] == "fugindo" else 1
+        balanco = 0 if andando else math.sin(agora_ts * 1.1) * 3
+        inclinacao = -20 if andando else (-12 - (18 * progresso if cena["estado"] != "idle" else 0))
         torso_topo_x = base_x - 6 + balanco
-        torso_topo_y = base_y - 42
+        torso_topo_y = base_y - (46 if andando else 42)
         torso_base_x = base_x + balanco
         torso_base_y = base_y
         ombro_x = torso_topo_x + 4
         ombro_y = torso_topo_y + 10
-        mao_x = base_x + 54 + progresso * 24
-        mao_y = base_y - 26 - progresso * 18
-        ponta_x = mao_x + 76
-        ponta_y = mao_y + inclinacao
-        linha_x = ponta_x + 14
-        linha_y = max(horizonte + 18, ponta_y + 56 + (1 - progresso) * 34)
+        if andando:
+            passo_perna = math.sin(agora_ts * 10) * 7
+            mao_x = base_x + 22 * direcao_andando
+            mao_y = base_y - 20
+            ponta_x = mao_x + 40 * direcao_andando
+            ponta_y = mao_y - 14
+            linha_x = ponta_x
+            linha_y = ponta_y
+        else:
+            passo_perna = 0
+            mao_x = base_x + 54 + progresso * 24
+            mao_y = base_y - 26 - progresso * 18
+            ponta_x = mao_x + 76
+            ponta_y = mao_y + inclinacao
+            linha_x = ponta_x + 14
+            linha_y = max(horizonte + 18, ponta_y + 56 + (1 - progresso) * 34)
         captura_x = linha_x + 18
         captura_y = linha_y - 10
 
-        if cena["estado"] == "mostrando":
-            balanco_captura = math.sin(agora_ts * 4.2) * 6
-            captura_x = mao_x + 42 + balanco_captura
-            captura_y = mao_y - 34
-            linha_x = captura_x
-            linha_y = captura_y - 16
+        if pode_pescar and cena["estado"] == "arremessando":
+            duracao_arremesso = max(0.1, cena["evento_ate"] - cena["evento_inicio"])
+            progresso_arremesso = min(1.0, max(0.0, (agora_ts - cena["evento_inicio"]) / duracao_arremesso))
+            origem_x = mao_x + 18
+            origem_y = mao_y - 18
+            destino_x = cena["trofeu_x"]
+            destino_y = cena["trofeu_y"] - 4
+            captura_x = origem_x + (destino_x - origem_x) * progresso_arremesso
+            captura_y = origem_y + (destino_y - origem_y) * progresso_arremesso - math.sin(progresso_arremesso * math.pi) * 92
+            linha_x = mao_x + 10
+            linha_y = mao_y + 4
 
         pescador = cena["pescador"]
-        self.canvas.coords(pescador["banco"], base_x - 28, base_y + 6, base_x + 18, base_y + 16)
+        trofeu_ilha = cena["trofeu_ilha"]
+        self.canvas.coords(
+            pescador["banco"],
+            cena["base_x"] - 28, cena["base_y"] + 6,
+            cena["base_x"] + 18, cena["base_y"] + 16,
+        )
         self.canvas.coords(pescador["tronco"], torso_base_x, torso_base_y, torso_topo_x, torso_topo_y)
-        self.canvas.coords(pescador["perna1"], base_x - 2, base_y, base_x - 16, base_y + 24)
-        self.canvas.coords(pescador["perna2"], base_x + 6, base_y, base_x + 24, base_y + 22)
+        self.canvas.coords(pescador["perna1"], base_x - 2, base_y, base_x - 16 + passo_perna, base_y + 24)
+        self.canvas.coords(pescador["perna2"], base_x + 6, base_y, base_x + 24 - passo_perna, base_y + 22)
         self.canvas.coords(pescador["braco"], ombro_x, ombro_y, mao_x, mao_y)
         self.canvas.coords(
             pescador["vara"],
@@ -1236,91 +1813,62 @@ class DescansoTela(tk.Tk):
         ripple_cx = linha_x
         ripple_cy = linha_y + 6
         for indice, item in enumerate(cena["ripples"]):
-            raio = 10 + indice * 12 + math.sin(agora_ts * 3 + indice) * 2
-            self.canvas.coords(
-                item,
-                ripple_cx - raio, ripple_cy - raio * 0.45,
-                ripple_cx + raio, ripple_cy + raio * 0.45,
-            )
+            if andando:
+                self.canvas.itemconfig(item, state="hidden")
+            else:
+                raio = 10 + indice * 12 + math.sin(agora_ts * 3 + indice) * 2
+                self.canvas.coords(
+                    item,
+                    ripple_cx - raio, ripple_cy - raio * 0.45,
+                    ripple_cx + raio, ripple_cy + raio * 0.45,
+                )
+                self.canvas.itemconfig(item, state="normal")
 
         captura = pescador["captura"]
-        if cena["estado"] == "mostrando":
-            if cena["captura_tipo"] == "bota":
-                self.canvas.coords(
-                    pescador["captura_bota_cano"],
-                    captura_x - 14, captura_y - 30,
-                    captura_x + 6, captura_y - 30,
-                    captura_x + 6, captura_y + 2,
-                    captura_x - 14, captura_y + 2,
-                )
-                self.canvas.coords(
-                    pescador["captura_bota_sola"],
-                    captura_x - 18, captura_y + 2,
-                    captura_x + 12, captura_y + 2,
-                    captura_x + 18, captura_y + 12,
-                    captura_x - 18, captura_y + 12,
-                )
-                self.canvas.itemconfig(pescador["captura_bota_cano"], state="normal")
-                self.canvas.itemconfig(pescador["captura_bota_sola"], state="normal")
-                self.canvas.itemconfig(pescador["captura_peixe_corpo"], state="hidden")
-                self.canvas.itemconfig(pescador["captura_peixe_cauda"], state="hidden")
-                self.canvas.itemconfig(pescador["captura_peixe_olho"], state="hidden")
-            elif cena["captura_tipo"] == "peixinho":
-                meio = 12
-                altura = 8
-                self.canvas.coords(
-                    pescador["captura_peixe_corpo"],
-                    captura_x - meio, captura_y - altura,
-                    captura_x + meio, captura_y + altura,
-                )
-                self.canvas.coords(
-                    pescador["captura_peixe_cauda"],
-                    captura_x + meio - 2, captura_y,
-                    captura_x + meio + 14, captura_y - 10,
-                    captura_x + meio + 14, captura_y + 10,
-                )
-                self.canvas.coords(
-                    pescador["captura_peixe_olho"],
-                    captura_x - 6, captura_y - 2,
-                    captura_x - 2, captura_y + 2,
-                )
-                self.canvas.itemconfig(pescador["captura_peixe_corpo"], fill="#9BE7FF", outline="#EAFBFF", state="normal")
-                self.canvas.itemconfig(pescador["captura_peixe_cauda"], fill="#69D8F6", outline="#EAFBFF", state="normal")
-                self.canvas.itemconfig(pescador["captura_peixe_olho"], state="normal")
-                self.canvas.itemconfig(pescador["captura_bota_cano"], state="hidden")
-                self.canvas.itemconfig(pescador["captura_bota_sola"], state="hidden")
-            else:
-                meio = 18
-                altura = 12
-                self.canvas.coords(
-                    pescador["captura_peixe_corpo"],
-                    captura_x - meio, captura_y - altura,
-                    captura_x + meio, captura_y + altura,
-                )
-                self.canvas.coords(
-                    pescador["captura_peixe_cauda"],
-                    captura_x + meio - 2, captura_y,
-                    captura_x + meio + 18, captura_y - 14,
-                    captura_x + meio + 18, captura_y + 14,
-                )
-                self.canvas.coords(
-                    pescador["captura_peixe_olho"],
-                    captura_x - 8, captura_y - 3,
-                    captura_x - 3, captura_y + 3,
-                )
-                self.canvas.itemconfig(pescador["captura_peixe_corpo"], fill="#7DFF9B", outline="#E5FFEF", state="normal")
-                self.canvas.itemconfig(pescador["captura_peixe_cauda"], fill="#55D68C", outline="#E5FFEF", state="normal")
-                self.canvas.itemconfig(pescador["captura_peixe_olho"], state="normal")
-                self.canvas.itemconfig(pescador["captura_bota_cano"], state="hidden")
-                self.canvas.itemconfig(pescador["captura_bota_sola"], state="hidden")
-            self.canvas.itemconfig(captura, text="", state="hidden")
+        self.canvas.itemconfig(captura, text="", state="hidden")
+        if cena["trofeu_tipo"] and not (cena["gaivota_ativa"] and gaivota_carregando):
+            self._desenhar_forma_captura(
+                trofeu_ilha,
+                cena["trofeu_tipo"],
+                cena["trofeu_x"],
+                cena["trofeu_y"],
+                escala=0.92,
+            )
         else:
-            self.canvas.itemconfig(captura, text="", state="hidden")
-            self.canvas.itemconfig(pescador["captura_peixe_corpo"], state="hidden")
-            self.canvas.itemconfig(pescador["captura_peixe_cauda"], state="hidden")
-            self.canvas.itemconfig(pescador["captura_peixe_olho"], state="hidden")
-            self.canvas.itemconfig(pescador["captura_bota_cano"], state="hidden")
-            self.canvas.itemconfig(pescador["captura_bota_sola"], state="hidden")
+            self._ocultar_forma_captura(trofeu_ilha)
+
+        if cena["estado"] == "arremessando" and cena["captura_tipo"]:
+            self._desenhar_forma_captura(
+                {
+                    "peixe_corpo": pescador["captura_peixe_corpo"],
+                    "peixe_cauda": pescador["captura_peixe_cauda"],
+                    "peixe_olho": pescador["captura_peixe_olho"],
+                    "bota_cano": pescador["captura_bota_cano"],
+                    "bota_sola": pescador["captura_bota_sola"],
+                    "bigorna_base": pescador["captura_bigorna_base"],
+                    "bigorna_topo": pescador["captura_bigorna_topo"],
+                    "pneu_externo": pescador["captura_pneu_externo"],
+                    "pneu_interno": pescador["captura_pneu_interno"],
+                },
+                cena["captura_tipo"],
+                captura_x,
+                captura_y,
+                escala=0.95,
+            )
+        else:
+            self._ocultar_forma_captura(
+                {
+                    "peixe_corpo": pescador["captura_peixe_corpo"],
+                    "peixe_cauda": pescador["captura_peixe_cauda"],
+                    "peixe_olho": pescador["captura_peixe_olho"],
+                    "bota_cano": pescador["captura_bota_cano"],
+                    "bota_sola": pescador["captura_bota_sola"],
+                    "bigorna_base": pescador["captura_bigorna_base"],
+                    "bigorna_topo": pescador["captura_bigorna_topo"],
+                    "pneu_externo": pescador["captura_pneu_externo"],
+                    "pneu_interno": pescador["captura_pneu_interno"],
+                }
+            )
 
     def _loop_animacao_pescador(self):
         """Executa o loop suave do fundo da ilha."""
