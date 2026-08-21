@@ -22,13 +22,17 @@ Ela mostra relogio em tempo real, dados do evento, mensagem de boas-vindas, repr
 - **Fundo "Ilha do Pescador"** com:
   - sol se movimentando conforme o horario do dia
   - reflexo do sol acompanhando a agua
-  - pescador com animacoes calmas
+  - nuvens em deriva suave
+  - pescador com animacoes calmas, rosto orientado pela acao e caminhada ate o coqueiro
   - pescarias engracadas com peixe, peixinho, bota, bigorna e pneu
   - item arremessado para a ilha e exibido no chao
   - gaivota que pode levar o peixe embora
   - tubarao lento no mar
   - caranguejo que sobe pela ilha
   - pescador fugindo para o meio da ilha quando o tubarao se aproxima
+  - pescador balancando o coqueiro, recebendo e consumindo um coco
+  - aviao distante observado com binoculo
+  - cardume de peixinhos e golfinhos saltando ao fundo
 
 ## Horarios dos avisos
 
@@ -74,8 +78,20 @@ python main.py
 3. Escolha o espaco, o fundo e o audio.
 4. Se quiser, use o botao de teste de aviso.
 5. Ajuste o intervalo do tubarao se desejar.
-6. Clique em `Iniciar tela de espera`.
-7. Para sair da tela cheia, pressione `Esc`.
+6. Preencha os agendamentos de banner aereo que desejar.
+7. Clique em `Iniciar tela de espera`.
+8. Para sair da tela cheia, pressione `Esc`.
+
+## Mensagens Agendadas
+
+O launcher permite cadastrar ate 8 mensagens em horarios definidos.
+
+- Preencha o horario no formato `HH:MM`; ao digitar `1327`, o campo formata para `13:27`.
+- Preencha a mensagem ao lado do horario.
+- Linhas vazias, incompletas ou com horario invalido sao ignoradas.
+- Cada mensagem e exibida uma vez por dia, no minuto configurado.
+- Um aviao atravessa a faixa superior da tela puxando um banner de alto contraste.
+- A passagem dura 30 segundos; se houver mais de uma mensagem no mesmo minuto, elas entram em fila.
 
 ## Fundos disponiveis
 
@@ -92,9 +108,12 @@ Ele inclui:
 - variacao de ceu, mar e sol ao longo do dia
 - pescador no trapiche
 - arremesso do item pescado para a areia da ilha
+- cena do coqueiro: caminhada, balanco, coco caindo na mao e consumo
+- cena de aviao distante com binoculo
 - tubarao no mar com intervalo configuravel
 - caranguejo na areia usando o mesmo intervalo configurado do tubarao
 - gaivota que pode levar o peixe embora
+- peixinhos e golfinhos saltando aleatoriamente no mar
 
 ## Configuracao do tubarao
 
@@ -169,7 +188,13 @@ Exemplo:
   "volume_padrao": 60,
   "audio_local": "assets\\arquivo.mp3",
   "fundo_padrao": "Ilha do Pescador",
-  "intervalo_tubarao_minutos": 10
+  "intervalo_tubarao_minutos": 10,
+  "agendamentos_banner": [
+    {
+      "horario": "13:30",
+      "mensagem": "A atividade comeca em breve."
+    }
+  ]
 }
 ```
 

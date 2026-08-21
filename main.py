@@ -174,6 +174,17 @@ class JanelaConfig(tk.Tk):
         self.var_intervalo_tubarao = tk.StringVar(
             value=str(config.get("intervalo_tubarao_minutos", 10))
         )
+        agendamentos = config.get("agendamentos_banner", [])
+        self.var_agendamentos = []
+        for indice in range(8):
+            item = agendamentos[indice] if indice < len(agendamentos) else {}
+            horario = "".join(caractere for caractere in str(item.get("horario", "")) if caractere.isdigit())[:4]
+            if len(horario) == 4:
+                horario = f"{horario[:2]}:{horario[2:]}"
+            self.var_agendamentos.append((
+                tk.StringVar(value=horario),
+                tk.StringVar(value=str(item.get("mensagem", ""))),
+            ))
 
         self.title("CIEBP - Descanso de Tela")
         self.resizable(False, True)
@@ -435,6 +446,53 @@ class JanelaConfig(tk.Tk):
         self._entry_tubarao.pack(fill="x", ipady=4)
         self._entry_tubarao.bind("<MouseWheel>", _on_wheel)
 
+        # --- Agendamentos de mensagens em banner aereo ---
+        frame_agendamentos = tk.Frame(F, bg="#0D1B2A")
+        frame_agendamentos.pack(fill="x", padx=30, pady=(8, 6))
+        tk.Label(
+            frame_agendamentos,
+            text="Mensagens agendadas no avião",
+            font=("Segoe UI", 11, "bold"),
+            fg="#E3EDF5",
+            bg="#0D1B2A",
+            anchor="w",
+        ).pack(fill="x", pady=(0, 2))
+        tk.Label(
+            frame_agendamentos,
+            text="Preencha até 8 horários no formato HH:MM. Em cada horário, um avião leva a mensagem em um banner no alto da tela.",
+            font=("Segoe UI", 8),
+            fg="#7E94A8",
+            bg="#0D1B2A",
+            anchor="w",
+            justify="left",
+            wraplength=500,
+        ).pack(fill="x", pady=(0, 5))
+
+        cabecalho = tk.Frame(frame_agendamentos, bg="#0D1B2A")
+        cabecalho.pack(fill="x", pady=(0, 2))
+        tk.Label(cabecalho, text="Horário", font=("Segoe UI", 8, "bold"), fg="#B8C7D6", bg="#0D1B2A", width=10, anchor="w").pack(side="left")
+        tk.Label(cabecalho, text="Mensagem", font=("Segoe UI", 8, "bold"), fg="#B8C7D6", bg="#0D1B2A", anchor="w").pack(side="left", fill="x", expand=True)
+        for indice, (var_horario, var_mensagem) in enumerate(self.var_agendamentos, start=1):
+            linha = tk.Frame(frame_agendamentos, bg="#0D1B2A")
+            linha.pack(fill="x", pady=2)
+            tk.Label(linha, text=f"{indice}.", font=("Segoe UI", 9), fg="#7E94A8", bg="#0D1B2A", width=3, anchor="w").pack(side="left")
+            campo_horario = tk.Entry(
+                linha, textvariable=var_horario, width=8, font=("Segoe UI", 10),
+                bg="#132336", fg="#ECEFF1", insertbackground="#ECEFF1", relief="flat", bd=0,
+                highlightthickness=1, highlightbackground="#1E3A5F", highlightcolor="#00BCD4",
+            )
+            campo_horario.pack(side="left", ipady=3, padx=(0, 5))
+            campo_mensagem = tk.Entry(
+                linha, textvariable=var_mensagem, font=("Segoe UI", 10),
+                bg="#132336", fg="#ECEFF1", insertbackground="#ECEFF1", relief="flat", bd=0,
+                highlightthickness=1, highlightbackground="#1E3A5F", highlightcolor="#00BCD4",
+            )
+            campo_mensagem.pack(side="left", fill="x", expand=True, ipady=3)
+            campo_horario.bind("<MouseWheel>", _on_wheel)
+            campo_horario.bind("<KeyRelease>", self._formatar_horario_agendamento)
+            campo_horario.bind("<FocusOut>", self._formatar_horario_agendamento)
+            campo_mensagem.bind("<MouseWheel>", _on_wheel)
+
         # --- Seleção de Rádio ---
         frame_radio = tk.Frame(F, bg="#0D1B2A")
         frame_radio.pack(fill="x", padx=30, pady=(0, 6))
@@ -620,6 +678,19 @@ class JanelaConfig(tk.Tk):
         self._btn_iniciar.bind("<Enter>", lambda e: self._btn_iniciar.configure(bg="#0097A7"))
         self._btn_iniciar.bind("<Leave>", lambda e: self._btn_iniciar.configure(bg="#00BCD4"))
 
+    def _formatar_horario_agendamento(self, event=None):
+        """Aplica a mascara HH:MM enquanto o horario e digitado."""
+        campo = event.widget
+        digitos = "".join(caractere for caractere in campo.get() if caractere.isdigit())[:4]
+        if len(digitos) <= 2:
+            valor_formatado = digitos
+        else:
+            valor_formatado = f"{digitos[:2]}:{digitos[2:]}"
+        if campo.get() != valor_formatado:
+            campo.delete(0, "end")
+            campo.insert(0, valor_formatado)
+        campo.icursor("end")
+
     def _atualizar_campo_mp3(self, event=None):
         """Mostra/oculta o campo de arquivo MP3 conforme a seleção da rádio."""
         if self.radio_escolhida.get() == "Música local (MP3)":
@@ -674,6 +745,18 @@ class JanelaConfig(tk.Tk):
         except ValueError:
             intervalo_tubarao = 10
         self.config_dados["intervalo_tubarao_minutos"] = intervalo_tubarao
+        agendamentos = []
+        for var_horario, var_mensagem in self.var_agendamentos:
+            horario = var_horario.get().strip()
+            mensagem = var_mensagem.get().strip()
+            try:
+                hora, minuto = (int(valor) for valor in horario.split(":", 1))
+                horario_valido = 0 <= hora <= 23 and 0 <= minuto <= 59
+            except (TypeError, ValueError):
+                horario_valido = False
+            if horario_valido and mensagem:
+                agendamentos.append({"horario": f"{hora:02d}:{minuto:02d}", "mensagem": mensagem})
+        self.config_dados["agendamentos_banner"] = agendamentos
 
         espaco = self.espaco_escolhido.get()
         radio = self.radio_escolhida.get()
@@ -803,6 +886,10 @@ class DescansoTela(tk.Tk):
         self._ultimo_confete = 0.0
         self._ultimo_foguete = 0.0
         self._contador_foguetes = 0
+        self._banner_agendado_ativo = None
+        self._banner_agendado_after = None
+        self._fila_banners_agendados = []
+        self._agendamentos_disparados = set()
         self._tags_fundo_pescador = "fundo_pescador"
         self._animacao_pescador_ativa = False
         self._animacao_pescador_after = None
@@ -1068,17 +1155,28 @@ class DescansoTela(tk.Tk):
         coqueiro_tronco = self.canvas.create_line(
             coqueiro_base_x, coqueiro_base_y,
             coqueiro_topo_x, coqueiro_topo_y,
-            fill="#6A3D1A", width=8, smooth=True, tags=tags
+            fill="#70411E", width=11, smooth=True, tags=tags
         )
+        marcas_tronco = []
+        for proporcao in (0.18, 0.34, 0.50, 0.66):
+            marca_x = coqueiro_base_x + (coqueiro_topo_x - coqueiro_base_x) * proporcao
+            marca_y = coqueiro_base_y + (coqueiro_topo_y - coqueiro_base_y) * proporcao
+            marcas_tronco.append(self.canvas.create_line(
+                marca_x - 5,
+                marca_y + 1,
+                marca_x + 6,
+                marca_y - 2,
+                fill="#C08A52", width=2, tags=tags
+            ))
         folhas = []
-        for pontos, cor, largura in [
-            ((0, 0, -16, -10, -34, -18, -52, -38), "#36D977", 5),
-            ((0, 0, -6, -14, -18, -34, -42, -58), "#45E082", 4),
-            ((0, 0, 10, -15, 20, -34, 24, -58), "#49E786", 4),
-            ((0, 0, 22, -8, 40, -18, 58, -26), "#36D977", 5),
-            ((0, 0, 18, 6, 34, 10, 50, 8), "#2FCB6C", 4),
-            ((0, 0, -10, 8, -26, 14, -42, 12), "#2ABF64", 4),
-            ((0, 0, -2, -6, 6, -20, 14, -36), "#5AF094", 3),
+        for pontos, cor in [
+            ((0, 0, -24, -8, -57, -29, -67, -43, -34, -41, -8, -22), "#238A50"),
+            ((0, 0, -12, -22, -33, -54, -41, -73, -12, -57, 4, -27), "#2FA85F"),
+            ((0, 0, 5, -23, 12, -57, 25, -75, 30, -47, 18, -17), "#3ABA69"),
+            ((0, 0, 23, -13, 53, -30, 75, -30, 51, -12, 15, -3), "#269452"),
+            ((0, 0, 20, 2, 52, 7, 68, 20, 34, 18, 8, 8), "#1E7D46"),
+            ((0, 0, -15, 3, -47, 16, -61, 31, -28, 24, -4, 9), "#207B45"),
+            ((0, 0, -2, -14, 1, -43, 10, -59, 17, -31, 10, -8), "#52C975"),
         ]:
             coords = []
             for indice in range(0, len(pontos), 2):
@@ -1086,10 +1184,16 @@ class DescansoTela(tk.Tk):
                     coqueiro_topo_x + pontos[indice],
                     coqueiro_topo_y + pontos[indice + 1],
                 ))
-            folhas.append(self.canvas.create_line(
+            folhas.append(self.canvas.create_polygon(
                 *coords,
-                fill=cor, width=largura, smooth=True, splinesteps=24, tags=tags
+                fill=cor, outline="#17643A", width=1, smooth=True, splinesteps=24, tags=tags
             ))
+        cocos = [
+            self.canvas.create_oval(0, 0, 0, 0, fill="#9C612C", outline="#E5AD61", width=1, tags=tags)
+            for _ in range(3)
+        ]
+        for coco, dx, dy in zip(cocos, (-11, 3, 13), (7, 9, 5)):
+            self.canvas.coords(coco, coqueiro_topo_x + dx - 6, coqueiro_topo_y + dy - 6, coqueiro_topo_x + dx + 6, coqueiro_topo_y + dy + 6)
 
         trapiche = self.canvas.create_polygon(
             int(larg * 0.28), int(alt * 0.76),
@@ -1108,9 +1212,19 @@ class DescansoTela(tk.Tk):
         pescador = {
             "cabeca": self.canvas.create_oval(0, 0, 0, 0, fill="#F2C79B", outline="", tags=tags),
             "chapeu": self.canvas.create_polygon(0, 0, 0, 0, 0, 0, fill="#B5651D", outline="", tags=tags),
+            "chapeu_faixa": self.canvas.create_line(0, 0, 0, 0, fill="#F2D38B", width=3, tags=tags),
+            "orelha": self.canvas.create_oval(0, 0, 0, 0, fill="#E9B987", outline="", tags=tags),
+            "nariz": self.canvas.create_polygon(0, 0, 0, 0, 0, 0, fill="#E9B987", outline="#C88E62", width=1, tags=tags),
+            "olho": self.canvas.create_oval(0, 0, 0, 0, fill="#1B2838", outline="", tags=tags),
+            "barba": self.canvas.create_polygon(0, 0, 0, 0, 0, 0, fill="#4D372A", outline="", tags=tags),
             "tronco": self.canvas.create_line(0, 0, 0, 0, fill="#F6F1E9", width=8, tags=tags),
+            "camisa": self.canvas.create_polygon(0, 0, 0, 0, 0, 0, 0, 0, fill="#E7F4F0", outline="#77AFAA", width=1, tags=tags),
+            "colete": self.canvas.create_line(0, 0, 0, 0, fill="#2E7E79", width=3, tags=tags),
+            "bermuda": self.canvas.create_line(0, 0, 0, 0, fill="#395B72", width=7, tags=tags),
             "perna1": self.canvas.create_line(0, 0, 0, 0, fill="#213547", width=6, tags=tags),
             "perna2": self.canvas.create_line(0, 0, 0, 0, fill="#213547", width=6, tags=tags),
+            "sapato1": self.canvas.create_line(0, 0, 0, 0, fill="#352E29", width=4, tags=tags),
+            "sapato2": self.canvas.create_line(0, 0, 0, 0, fill="#352E29", width=4, tags=tags),
             "braco": self.canvas.create_line(0, 0, 0, 0, fill="#F2C79B", width=5, tags=tags),
             "vara": self.canvas.create_line(0, 0, 0, 0, fill="#3A2A1A", width=3, smooth=True, tags=tags),
             "linha": self.canvas.create_line(0, 0, 0, 0, fill="#E7F7FF", width=2, tags=tags),
@@ -1125,6 +1239,8 @@ class DescansoTela(tk.Tk):
             "captura_bigorna_topo": self.canvas.create_polygon(0, 0, 0, 0, 0, 0, 0, 0, fill="#A7B3BD", outline="#D8E0E6", width=2, state="hidden", tags=tags),
             "captura_pneu_externo": self.canvas.create_oval(0, 0, 0, 0, fill="#2E3640", outline="#717B86", width=2, state="hidden", tags=tags),
             "captura_pneu_interno": self.canvas.create_oval(0, 0, 0, 0, fill="#0D1B2A", outline="", state="hidden", tags=tags),
+            "captura_pneu_aro": self.canvas.create_oval(0, 0, 0, 0, fill="#72818A", outline="#C7D2D8", width=1, state="hidden", tags=tags),
+            "captura_pneu_brilho": self.canvas.create_arc(0, 0, 0, 0, start=115, extent=125, style="arc", outline="#D5E1E7", width=2, state="hidden", tags=tags),
         }
         trofeu_ilha = {
             "peixe_corpo": self.canvas.create_oval(0, 0, 0, 0, fill="#7DFF9B", outline="#DFFFEA", width=2, state="hidden", tags=tags),
@@ -1136,11 +1252,32 @@ class DescansoTela(tk.Tk):
             "bigorna_topo": self.canvas.create_polygon(0, 0, 0, 0, 0, 0, 0, 0, fill="#A7B3BD", outline="#D8E0E6", width=2, state="hidden", tags=tags),
             "pneu_externo": self.canvas.create_oval(0, 0, 0, 0, fill="#2E3640", outline="#717B86", width=2, state="hidden", tags=tags),
             "pneu_interno": self.canvas.create_oval(0, 0, 0, 0, fill="#0D1B2A", outline="", state="hidden", tags=tags),
+            "pneu_aro": self.canvas.create_oval(0, 0, 0, 0, fill="#72818A", outline="#C7D2D8", width=1, state="hidden", tags=tags),
+            "pneu_brilho": self.canvas.create_arc(0, 0, 0, 0, start=115, extent=125, style="arc", outline="#D5E1E7", width=2, state="hidden", tags=tags),
         }
 
         ondas = []
         for frac, amp in ((0.52, 0.16), (0.67, 0.13), (0.8, 0.11)):
             ondas.append(self.canvas.create_line(0, 0, 0, 0, fill="#89D4FF", width=2, smooth=True, tags=tags))
+
+        peixinhos_salto = []
+        for _ in range(3):
+            peixinhos_salto.append({
+                "corpo": self.canvas.create_oval(0, 0, 0, 0, fill="#7DFF9B", outline="#E5FFEF", width=1, state="hidden", tags=tags),
+                "cauda": self.canvas.create_polygon(0, 0, 0, 0, 0, 0, fill="#45C985", outline="#E5FFEF", width=1, state="hidden", tags=tags),
+                "olho": self.canvas.create_oval(0, 0, 0, 0, fill="#163040", outline="", state="hidden", tags=tags),
+            })
+        golfinhos_salto = []
+        for _ in range(2):
+            golfinhos_salto.append({
+                "corpo": self.canvas.create_polygon(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, fill="#5F93A8", outline="#B7E1EC", width=1, smooth=True, splinesteps=16, state="hidden", tags=tags),
+                "focinho": self.canvas.create_polygon(0, 0, 0, 0, 0, 0, fill="#6EA1B4", outline="#B7E1EC", width=1, state="hidden", tags=tags),
+                "barbatana": self.canvas.create_polygon(0, 0, 0, 0, 0, 0, fill="#477B92", outline="#B7E1EC", width=1, state="hidden", tags=tags),
+                "nadadeira_lateral": self.canvas.create_polygon(0, 0, 0, 0, 0, 0, fill="#4D849A", outline="#B7E1EC", width=1, state="hidden", tags=tags),
+                "cauda": self.canvas.create_polygon(0, 0, 0, 0, 0, 0, 0, 0, fill="#4D849A", outline="#B7E1EC", width=1, state="hidden", tags=tags),
+                "barriga": self.canvas.create_arc(0, 0, 0, 0, start=190, extent=160, style="arc", outline="#D9F1F5", width=2, state="hidden", tags=tags),
+                "olho": self.canvas.create_oval(0, 0, 0, 0, fill="#102934", outline="", state="hidden", tags=tags),
+            })
 
         tubarao = {
             "corpo": self.canvas.create_polygon(
@@ -1158,13 +1295,21 @@ class DescansoTela(tk.Tk):
                 fill="#173E56", outline="#2A5970", width=2,
                 smooth=True, state="hidden", tags=tags
             ),
+            "barriga": self.canvas.create_polygon(0, 0, 0, 0, 0, 0, fill="#B5D6DE", outline="", state="hidden", tags=tags),
+            "olho": self.canvas.create_oval(0, 0, 0, 0, fill="#F3F7E9", outline="#163040", width=1, state="hidden", tags=tags),
+            "pupila": self.canvas.create_oval(0, 0, 0, 0, fill="#101820", outline="", state="hidden", tags=tags),
+            "boca": self.canvas.create_line(0, 0, 0, 0, fill="#15232A", width=2, smooth=True, state="hidden", tags=tags),
+            "dentes": self.canvas.create_polygon(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, fill="#FFFFFF", outline="#C9E8EE", width=1, state="hidden", tags=tags),
         }
         gaivota = {
-            "asa_esq": self.canvas.create_line(0, 0, 0, 0, 0, 0, fill="#F5F7FA", width=3, smooth=True, state="hidden", tags=tags),
-            "asa_dir": self.canvas.create_line(0, 0, 0, 0, 0, 0, fill="#F5F7FA", width=3, smooth=True, state="hidden", tags=tags),
-            "corpo": self.canvas.create_oval(0, 0, 0, 0, fill="#FFFFFF", outline="#D3DAE2", width=1, state="hidden", tags=tags),
-            "cabeca": self.canvas.create_oval(0, 0, 0, 0, fill="#FFFFFF", outline="#D3DAE2", width=1, state="hidden", tags=tags),
-            "bico": self.canvas.create_polygon(0, 0, 0, 0, 0, 0, fill="#F7B844", outline="#FDE7AE", width=1, state="hidden", tags=tags),
+            "sombra": self.canvas.create_oval(0, 0, 0, 0, fill="#93A0AF", outline="", state="hidden", tags=tags),
+            "asa_esq": self.canvas.create_polygon(0, 0, 0, 0, 0, 0, 0, 0, fill="#E8EDF2", outline="#9AA8B6", width=1, smooth=True, splinesteps=16, state="hidden", tags=tags),
+            "asa_dir": self.canvas.create_polygon(0, 0, 0, 0, 0, 0, 0, 0, fill="#C8D1DB", outline="#8B9AA9", width=1, smooth=True, splinesteps=16, state="hidden", tags=tags),
+            "cauda": self.canvas.create_polygon(0, 0, 0, 0, 0, 0, 0, 0, fill="#F4F6F8", outline="#AAB5BF", width=1, state="hidden", tags=tags),
+            "corpo": self.canvas.create_oval(0, 0, 0, 0, fill="#F9FBFC", outline="#AAB5BF", width=1, state="hidden", tags=tags),
+            "peito": self.canvas.create_oval(0, 0, 0, 0, fill="#FFFFFF", outline="", state="hidden", tags=tags),
+            "cabeca": self.canvas.create_oval(0, 0, 0, 0, fill="#FFFFFF", outline="#AAB5BF", width=1, state="hidden", tags=tags),
+            "bico": self.canvas.create_polygon(0, 0, 0, 0, 0, 0, fill="#F2B544", outline="#D98024", width=1, state="hidden", tags=tags),
             "olho": self.canvas.create_oval(0, 0, 0, 0, fill="#163040", outline="", state="hidden", tags=tags),
             "carga_peixe_corpo": self.canvas.create_oval(0, 0, 0, 0, fill="#7DFF9B", outline="#DFFFEA", width=1, state="hidden", tags=tags),
             "carga_peixe_cauda": self.canvas.create_polygon(0, 0, 0, 0, 0, 0, fill="#55D68C", outline="#DFFFEA", width=1, state="hidden", tags=tags),
@@ -1183,6 +1328,17 @@ class DescansoTela(tk.Tk):
             "pupila_esq": self.canvas.create_oval(0, 0, 0, 0, fill="#1E232A", outline="", state="hidden", tags=tags),
             "pupila_dir": self.canvas.create_oval(0, 0, 0, 0, fill="#1E232A", outline="", state="hidden", tags=tags),
         }
+        acoes = {
+            "coco_caindo": self.canvas.create_oval(0, 0, 0, 0, fill="#9C612C", outline="#E5AD61", width=2, state="hidden", tags=tags),
+            "coco_aberto": self.canvas.create_oval(0, 0, 0, 0, fill="#8B5428", outline="#F5DFB4", width=2, state="hidden", tags=tags),
+            "coco_polpa": self.canvas.create_arc(0, 0, 0, 0, start=180, extent=180, style="pieslice", fill="#FFF1D2", outline="#F5DFB4", state="hidden", tags=tags),
+            "aviao_corpo": self.canvas.create_polygon(0, 0, 0, 0, 0, 0, fill="#EAF5FA", outline="#8197A5", width=1, state="hidden", tags=tags),
+            "aviao_asa": self.canvas.create_polygon(0, 0, 0, 0, 0, 0, fill="#C5D7E2", outline="#8197A5", width=1, state="hidden", tags=tags),
+            "aviao_cauda": self.canvas.create_polygon(0, 0, 0, 0, 0, 0, fill="#C5D7E2", outline="#8197A5", width=1, state="hidden", tags=tags),
+            "binoculo_esq": self.canvas.create_oval(0, 0, 0, 0, fill="#263D4A", outline="#9EC2D0", width=2, state="hidden", tags=tags),
+            "binoculo_dir": self.canvas.create_oval(0, 0, 0, 0, fill="#263D4A", outline="#9EC2D0", width=2, state="hidden", tags=tags),
+            "binoculo_ponte": self.canvas.create_line(0, 0, 0, 0, fill="#9EC2D0", width=3, state="hidden", tags=tags),
+        }
 
         intervalo_tubarao = self._obter_intervalo_tubarao_segundos()
 
@@ -1200,17 +1356,38 @@ class DescansoTela(tk.Tk):
             "ilha": ilha,
             "areia": areia,
             "coqueiro_tronco": coqueiro_tronco,
+            "marcas_tronco": marcas_tronco,
             "folhas": folhas,
+            "cocos": cocos,
+            "coqueiro_deslocamento": 0.0,
             "trapiche": trapiche,
             "ondas": ondas,
+            "peixinhos_salto": peixinhos_salto,
+            "salto_peixes_ativo": False,
+            "salto_peixes_inicio": 0.0,
+            "salto_peixes_duracao": 0.0,
+            "salto_peixes_x": float(larg * 0.58),
+            "salto_peixes_sentido": 1,
+            "proximo_salto_peixes": time.time() + random.uniform(20, 40),
+            "golfinhos_salto": golfinhos_salto,
+            "salto_golfinhos_ativo": False,
+            "salto_golfinhos_inicio": 0.0,
+            "salto_golfinhos_duracao": 0.0,
+            "salto_golfinhos_x": float(larg * 0.68),
+            "salto_golfinhos_sentido": 1,
+            "proximo_salto_golfinhos": time.time() + random.uniform(55, 100),
             "ripples": agua_ripples,
             "pescador": pescador,
             "trofeu_ilha": trofeu_ilha,
             "tubarao": tubarao,
             "gaivota": gaivota,
             "caranguejo": caranguejo,
+            "acoes": acoes,
             "base_x": int(larg * 0.4),
             "base_y": int(alt * 0.69),
+            # O pescador para ao lado da base do tronco antes de balancar o coqueiro.
+            "coqueiro_x": int(larg * 0.21) - 20,
+            "coqueiro_y": int(alt * 0.73),
             "pescador_x": float(int(larg * 0.4)),
             "pescador_y": float(int(alt * 0.69)),
             "refugio_x": float(int(larg * 0.24)),
@@ -1220,6 +1397,7 @@ class DescansoTela(tk.Tk):
             "evento_inicio": time.time(),
             "evento_ate": time.time() + random.uniform(14, 22),
             "proximo_evento": time.time() + random.uniform(18, 30),
+            "acao_tipo": "",
             "captura_tipo": "",
             "trofeu_tipo": "",
             "trofeu_instante": 0.0,
@@ -1257,7 +1435,7 @@ class DescansoTela(tk.Tk):
             "peixe_corpo", "peixe_cauda", "peixe_olho",
             "bota_cano", "bota_sola",
             "bigorna_base", "bigorna_topo",
-            "pneu_externo", "pneu_interno",
+            "pneu_externo", "pneu_interno", "pneu_aro", "pneu_brilho",
             "carga_peixe_corpo", "carga_peixe_cauda", "carga_peixe_olho",
         ):
             if chave in grupo:
@@ -1268,39 +1446,57 @@ class DescansoTela(tk.Tk):
         self._ocultar_forma_captura(grupo)
 
         if tipo == "bota":
+            # Bota de pescador com cano inclinado, bico arredondado e salto.
             self.canvas.coords(
                 grupo["bota_cano"],
-                x - 14 * escala, y - 30 * escala,
-                x + 6 * escala, y - 30 * escala,
-                x + 6 * escala, y + 2 * escala,
-                x - 14 * escala, y + 2 * escala,
+                x - 15 * escala, y - 32 * escala,
+                x + 7 * escala, y - 29 * escala,
+                x + 5 * escala, y - 5 * escala,
+                x + 18 * escala, y + 1 * escala,
+                x + 12 * escala, y + 9 * escala,
+                x - 18 * escala, y + 7 * escala,
+                x - 15 * escala, y - 2 * escala,
             )
             self.canvas.coords(
                 grupo["bota_sola"],
-                x - 18 * escala, y + 2 * escala,
-                x + 12 * escala, y + 2 * escala,
-                x + 18 * escala, y + 12 * escala,
-                x - 18 * escala, y + 12 * escala,
+                x - 20 * escala, y + 6 * escala,
+                x + 15 * escala, y + 8 * escala,
+                x + 21 * escala, y + 13 * escala,
+                x + 13 * escala, y + 17 * escala,
+                x - 21 * escala, y + 14 * escala,
             )
+            self.canvas.itemconfig(grupo["bota_cano"], fill="#D99A4B", outline="#FFF0C9", width=2)
+            self.canvas.itemconfig(grupo["bota_sola"], fill="#704321", outline="#D8A36B", width=2)
             self.canvas.itemconfig(grupo["bota_cano"], state="normal")
             self.canvas.itemconfig(grupo["bota_sola"], state="normal")
             return
 
         if tipo == "bigorna":
+            # Silhueta classica: chifre longo, mesa, cintura estreita e base pesada.
             self.canvas.coords(
                 grupo["bigorna_topo"],
-                x - 18 * escala, y - 20 * escala,
-                x + 16 * escala, y - 20 * escala,
-                x + 22 * escala, y - 8 * escala,
-                x - 10 * escala, y - 8 * escala,
+                x - 28 * escala, y - 18 * escala,
+                x + 5 * escala, y - 18 * escala,
+                x + 15 * escala, y - 13 * escala,
+                x + 31 * escala, y - 7 * escala,
+                x + 12 * escala, y - 5 * escala,
+                x + 7 * escala, y + 1 * escala,
+                x - 18 * escala, y + 1 * escala,
+                x - 12 * escala, y - 8 * escala,
             )
             self.canvas.coords(
                 grupo["bigorna_base"],
-                x - 10 * escala, y - 8 * escala,
-                x + 8 * escala, y - 8 * escala,
-                x + 16 * escala, y + 14 * escala,
-                x - 24 * escala, y + 14 * escala,
+                x - 17 * escala, y,
+                x + 9 * escala, y,
+                x + 13 * escala, y + 10 * escala,
+                x + 24 * escala, y + 15 * escala,
+                x + 19 * escala, y + 21 * escala,
+                x - 28 * escala, y + 21 * escala,
+                x - 31 * escala, y + 15 * escala,
+                x - 20 * escala, y + 10 * escala,
             )
+            self.canvas.itemconfig(grupo["bigorna_topo"], fill="#B7C2CB", outline="#E7EEF2", width=2)
+            self.canvas.itemconfig(grupo["bigorna_base"], fill="#61717C", outline="#B7C2CB", width=2)
             self.canvas.itemconfig(grupo["bigorna_topo"], state="normal")
             self.canvas.itemconfig(grupo["bigorna_base"], state="normal")
             return
@@ -1308,16 +1504,31 @@ class DescansoTela(tk.Tk):
         if tipo == "pneu":
             self.canvas.coords(
                 grupo["pneu_externo"],
-                x - 18 * escala, y - 18 * escala,
-                x + 18 * escala, y + 18 * escala,
+                x - 22 * escala, y - 21 * escala,
+                x + 22 * escala, y + 21 * escala,
             )
             self.canvas.coords(
                 grupo["pneu_interno"],
-                x - 8 * escala, y - 8 * escala,
-                x + 8 * escala, y + 8 * escala,
+                x - 13 * escala, y - 13 * escala,
+                x + 13 * escala, y + 13 * escala,
             )
+            self.canvas.coords(
+                grupo["pneu_aro"],
+                x - 7 * escala, y - 7 * escala,
+                x + 7 * escala, y + 7 * escala,
+            )
+            self.canvas.coords(
+                grupo["pneu_brilho"],
+                x - 19 * escala, y - 18 * escala,
+                x + 19 * escala, y + 18 * escala,
+            )
+            self.canvas.itemconfig(grupo["pneu_externo"], fill="#252C32", outline="#A9B6BD", width=2)
+            self.canvas.itemconfig(grupo["pneu_interno"], fill="#10171C")
+            self.canvas.itemconfig(grupo["pneu_aro"], fill="#6F818A", outline="#D5E1E7", width=1)
             self.canvas.itemconfig(grupo["pneu_externo"], state="normal")
             self.canvas.itemconfig(grupo["pneu_interno"], state="normal")
+            self.canvas.itemconfig(grupo["pneu_aro"], state="normal")
+            self.canvas.itemconfig(grupo["pneu_brilho"], state="normal")
             return
 
         if tipo == "peixinho":
@@ -1422,10 +1633,14 @@ class DescansoTela(tk.Tk):
             self.canvas.itemconfig(cena["sol"], state="hidden")
             self.canvas.itemconfig(cena["sol_aura"], state="hidden")
 
-        fase_nuvem = agora_ts * 0.008
+        # Deriva lenta, com ritmos ligeiramente diferentes para nao parecer repetitiva.
+        fase_nuvem = agora_ts * 0.045
         for indice, nuvem in enumerate(cena["nuvens"]):
-            desloc_x = math.sin(fase_nuvem + indice * 1.7) * 26
-            desloc_y = math.cos(fase_nuvem * 0.7 + indice) * 6
+            desloc_x = (
+                math.sin(fase_nuvem + indice * 1.7) * 38
+                + math.sin(fase_nuvem * 0.37 + indice * 2.4) * 10
+            )
+            desloc_y = math.cos(fase_nuvem * 0.72 + indice * 1.3) * 7
             base_x = larg * nuvem["base_x"] + desloc_x
             base_y = horizonte * nuvem["base_y"] + desloc_y
             escala = nuvem["escala"]
@@ -1446,6 +1661,125 @@ class DescansoTela(tk.Tk):
                 y = y_base + math.sin(fase_onda + passo * 0.85 + indice) * amplitude
                 pontos.extend((x, y))
             self.canvas.coords(item, *pontos)
+
+        if (not cena["salto_peixes_ativo"]) and agora_ts >= cena["proximo_salto_peixes"]:
+            cena["salto_peixes_ativo"] = True
+            cena["salto_peixes_inicio"] = agora_ts
+            cena["salto_peixes_duracao"] = random.uniform(3.0, 4.2)
+            cena["salto_peixes_x"] = random.uniform(larg * 0.46, larg * 0.72)
+            cena["salto_peixes_sentido"] = random.choice((-1, 1))
+
+        if cena["salto_peixes_ativo"]:
+            progresso_salto = (agora_ts - cena["salto_peixes_inicio"]) / max(0.1, cena["salto_peixes_duracao"])
+            if progresso_salto >= 1.0:
+                cena["salto_peixes_ativo"] = False
+                cena["proximo_salto_peixes"] = agora_ts + random.uniform(24, 52)
+                for peixinho in cena["peixinhos_salto"]:
+                    for item in peixinho.values():
+                        self.canvas.itemconfig(item, state="hidden")
+            else:
+                for indice, peixinho in enumerate(cena["peixinhos_salto"]):
+                    progresso_individual = progresso_salto * 1.35 - indice * 0.20
+                    if not 0.0 <= progresso_individual <= 1.0:
+                        for item in peixinho.values():
+                            self.canvas.itemconfig(item, state="hidden")
+                        continue
+                    sentido = cena["salto_peixes_sentido"]
+                    peixe_x = cena["salto_peixes_x"] + sentido * ((progresso_individual - 0.5) * 150 + indice * 9)
+                    peixe_y = alt * 0.81 - math.sin(progresso_individual * math.pi) * (52 + indice * 7)
+                    tamanho = 9 + indice * 1.5
+                    self.canvas.coords(
+                        peixinho["corpo"],
+                        peixe_x - tamanho, peixe_y - tamanho * 0.55,
+                        peixe_x + tamanho, peixe_y + tamanho * 0.55,
+                    )
+                    self.canvas.coords(
+                        peixinho["cauda"],
+                        peixe_x - sentido * tamanho * 0.7, peixe_y,
+                        peixe_x - sentido * tamanho * 1.8, peixe_y - tamanho,
+                        peixe_x - sentido * tamanho * 1.8, peixe_y + tamanho,
+                    )
+                    olho_x = peixe_x + sentido * tamanho * 0.35
+                    self.canvas.coords(peixinho["olho"], olho_x - 2, peixe_y - 2, olho_x + 2, peixe_y + 2)
+                    for item in peixinho.values():
+                        self.canvas.itemconfig(item, state="normal")
+        else:
+            for peixinho in cena["peixinhos_salto"]:
+                for item in peixinho.values():
+                    self.canvas.itemconfig(item, state="hidden")
+
+        if (not cena["salto_golfinhos_ativo"]) and agora_ts >= cena["proximo_salto_golfinhos"]:
+            cena["salto_golfinhos_ativo"] = True
+            cena["salto_golfinhos_inicio"] = agora_ts
+            cena["salto_golfinhos_duracao"] = random.uniform(5.5, 7.0)
+            cena["salto_golfinhos_x"] = random.uniform(larg * 0.57, larg * 0.78)
+            cena["salto_golfinhos_sentido"] = random.choice((-1, 1))
+
+        if cena["salto_golfinhos_ativo"]:
+            progresso_golfinhos = (agora_ts - cena["salto_golfinhos_inicio"]) / max(0.1, cena["salto_golfinhos_duracao"])
+            if progresso_golfinhos >= 1.0:
+                cena["salto_golfinhos_ativo"] = False
+                cena["proximo_salto_golfinhos"] = agora_ts + random.uniform(70, 135)
+                for golfinho in cena["golfinhos_salto"]:
+                    for item in golfinho.values():
+                        self.canvas.itemconfig(item, state="hidden")
+            else:
+                for indice, golfinho in enumerate(cena["golfinhos_salto"]):
+                    progresso_individual = progresso_golfinhos * 1.22 - indice * 0.27
+                    if not 0.0 <= progresso_individual <= 1.0:
+                        for item in golfinho.values():
+                            self.canvas.itemconfig(item, state="hidden")
+                        continue
+                    sentido = cena["salto_golfinhos_sentido"]
+                    golfinho_x = cena["salto_golfinhos_x"] + sentido * ((progresso_individual - 0.5) * 175 + indice * 16)
+                    golfinho_y = alt * 0.745 - math.sin(progresso_individual * math.pi) * (58 + indice * 8)
+                    tamanho = 20 - indice * 2
+                    self.canvas.coords(
+                        golfinho["corpo"],
+                        golfinho_x + sentido * tamanho * 1.3, golfinho_y,
+                        golfinho_x + sentido * tamanho * 0.25, golfinho_y - tamanho * 0.7,
+                        golfinho_x - sentido * tamanho * 0.85, golfinho_y - tamanho * 0.48,
+                        golfinho_x - sentido * tamanho * 1.15, golfinho_y + tamanho * 0.08,
+                        golfinho_x - sentido * tamanho * 0.45, golfinho_y + tamanho * 0.42,
+                    )
+                    self.canvas.coords(
+                        golfinho["focinho"],
+                        golfinho_x + sentido * tamanho * 1.18, golfinho_y - tamanho * 0.12,
+                        golfinho_x + sentido * tamanho * 1.90, golfinho_y - tamanho * 0.02,
+                        golfinho_x + sentido * tamanho * 1.18, golfinho_y + tamanho * 0.16,
+                    )
+                    self.canvas.coords(
+                        golfinho["barbatana"],
+                        golfinho_x - sentido * tamanho * 0.05, golfinho_y - tamanho * 0.32,
+                        golfinho_x - sentido * tamanho * 0.42, golfinho_y - tamanho * 1.05,
+                        golfinho_x + sentido * tamanho * 0.25, golfinho_y - tamanho * 0.24,
+                    )
+                    self.canvas.coords(
+                        golfinho["nadadeira_lateral"],
+                        golfinho_x + sentido * tamanho * 0.05, golfinho_y + tamanho * 0.12,
+                        golfinho_x - sentido * tamanho * 0.35, golfinho_y + tamanho * 0.78,
+                        golfinho_x + sentido * tamanho * 0.42, golfinho_y + tamanho * 0.30,
+                    )
+                    self.canvas.coords(
+                        golfinho["cauda"],
+                        golfinho_x - sentido * tamanho * 1.05, golfinho_y,
+                        golfinho_x - sentido * tamanho * 1.72, golfinho_y - tamanho * 0.62,
+                        golfinho_x - sentido * tamanho * 1.50, golfinho_y,
+                        golfinho_x - sentido * tamanho * 1.72, golfinho_y + tamanho * 0.62,
+                    )
+                    self.canvas.coords(
+                        golfinho["barriga"],
+                        golfinho_x - tamanho, golfinho_y - tamanho * 0.15,
+                        golfinho_x + tamanho, golfinho_y + tamanho * 0.72,
+                    )
+                    olho_x = golfinho_x + sentido * tamanho * 0.80
+                    self.canvas.coords(golfinho["olho"], olho_x - 2, golfinho_y - tamanho * 0.35 - 2, olho_x + 2, golfinho_y - tamanho * 0.35 + 2)
+                    for item in golfinho.values():
+                        self.canvas.itemconfig(item, state="normal")
+        else:
+            for golfinho in cena["golfinhos_salto"]:
+                for item in golfinho.values():
+                    self.canvas.itemconfig(item, state="hidden")
 
         tubarao = cena["tubarao"]
         intervalo_tubarao = self._obter_intervalo_tubarao_segundos()
@@ -1468,9 +1802,8 @@ class DescansoTela(tk.Tk):
                 cena["proximo_tubarao"] = (agora_ts + intervalo_tubarao) if intervalo_tubarao else float("inf")
                 cena["tubarao_x"] = None
                 cena["tubarao_y"] = None
-                self.canvas.itemconfig(tubarao["corpo"], state="hidden")
-                self.canvas.itemconfig(tubarao["barbatana"], state="hidden")
-                self.canvas.itemconfig(tubarao["cauda"], state="hidden")
+                for chave in tubarao:
+                    self.canvas.itemconfig(tubarao[chave], state="hidden")
             else:
                 escala = cena["tubarao_escala"]
                 # Mantém o tubarão apenas na área livre do mar, sem alcançar
@@ -1527,15 +1860,45 @@ class DescansoTela(tk.Tk):
                     tub_x - sentido * 68 * escala, tub_y - 2 * escala,
                     tub_x - sentido * 82 * escala, tub_y + 22 * escala,
                 )
-                self.canvas.itemconfig(tubarao["corpo"], state="normal")
-                self.canvas.itemconfig(tubarao["barbatana"], state="normal")
-                self.canvas.itemconfig(tubarao["cauda"], state="normal")
+                frente_x = tub_x + sentido * 48 * escala
+                self.canvas.coords(
+                    tubarao["barriga"],
+                    tub_x + sentido * 38 * escala, tub_y + 8 * escala,
+                    tub_x + sentido * 8 * escala, tub_y + 20 * escala,
+                    tub_x - sentido * 28 * escala, tub_y + 12 * escala,
+                )
+                self.canvas.coords(
+                    tubarao["olho"],
+                    frente_x - 5 * escala, tub_y - 12 * escala,
+                    frente_x + 5 * escala, tub_y - 2 * escala,
+                )
+                self.canvas.coords(
+                    tubarao["pupila"],
+                    frente_x - sentido * 1 * escala - 2 * escala, tub_y - 10 * escala,
+                    frente_x - sentido * 1 * escala + 2 * escala, tub_y - 6 * escala,
+                )
+                self.canvas.coords(
+                    tubarao["boca"],
+                    frente_x + sentido * 12 * escala, tub_y + 4 * escala,
+                    frente_x + sentido * 3 * escala, tub_y + 11 * escala,
+                    frente_x - sentido * 14 * escala, tub_y + 10 * escala,
+                )
+                self.canvas.coords(
+                    tubarao["dentes"],
+                    frente_x + sentido * 10 * escala, tub_y + 5 * escala,
+                    frente_x + sentido * 5 * escala, tub_y + 12 * escala,
+                    frente_x, tub_y + 6 * escala,
+                    frente_x - sentido * 6 * escala, tub_y + 13 * escala,
+                    frente_x - sentido * 12 * escala, tub_y + 7 * escala,
+                    frente_x - sentido * 17 * escala, tub_y + 11 * escala,
+                )
+                for chave in tubarao:
+                    self.canvas.itemconfig(tubarao[chave], state="normal")
         else:
             cena["tubarao_x"] = None
             cena["tubarao_y"] = None
-            self.canvas.itemconfig(tubarao["corpo"], state="hidden")
-            self.canvas.itemconfig(tubarao["barbatana"], state="hidden")
-            self.canvas.itemconfig(tubarao["cauda"], state="hidden")
+            for chave in tubarao:
+                self.canvas.itemconfig(tubarao[chave], state="hidden")
 
         caranguejo = cena["caranguejo"]
         if intervalo_tubarao is None:
@@ -1615,6 +1978,9 @@ class DescansoTela(tk.Tk):
         if cena["pescador_modo"] == "fugindo":
             alvo_x = cena["refugio_x"]
             alvo_y = cena["refugio_y"]
+        elif cena["pescador_modo"] in {"indo_coqueiro", "no_coqueiro"}:
+            alvo_x = cena["coqueiro_x"] + 18
+            alvo_y = cena["coqueiro_y"]
         else:
             alvo_x = cena["base_x"]
             alvo_y = cena["base_y"]
@@ -1628,6 +1994,24 @@ class DescansoTela(tk.Tk):
             and abs(cena["pescador_y"] - cena["base_y"]) < 4
         ):
             cena["pescador_modo"] = "pescando"
+        elif (
+            cena["pescador_modo"] == "indo_coqueiro"
+            and abs(cena["pescador_x"] - (cena["coqueiro_x"] + 18)) < 4
+            and abs(cena["pescador_y"] - cena["coqueiro_y"]) < 4
+        ):
+            cena["pescador_modo"] = "no_coqueiro"
+            cena["estado"] = "coco_balancando"
+            cena["evento_inicio"] = agora_ts
+            cena["evento_ate"] = agora_ts + 2.6
+        elif (
+            cena["pescador_modo"] == "voltando_coqueiro"
+            and abs(cena["pescador_x"] - cena["base_x"]) < 4
+            and abs(cena["pescador_y"] - cena["base_y"]) < 4
+        ):
+            cena["pescador_modo"] = "pescando"
+            cena["estado"] = "idle"
+            cena["acao_tipo"] = ""
+            cena["proximo_evento"] = agora_ts + random.uniform(18, 32)
 
         gaivota = cena["gaivota"]
         gaivota_carregando = False
@@ -1649,7 +2033,7 @@ class DescansoTela(tk.Tk):
                     cena["trofeu_tipo"] = ""
                     cena["trofeu_instante"] = 0.0
                 self._ocultar_forma_captura(gaivota)
-                for chave in ("asa_esq", "asa_dir", "corpo", "cabeca", "bico", "olho"):
+                for chave in ("sombra", "asa_esq", "asa_dir", "cauda", "corpo", "peito", "cabeca", "bico", "olho"):
                     self.canvas.itemconfig(gaivota[chave], state="hidden")
             else:
                 ponto_inicio = (larg + 80, alt * 0.28)
@@ -1666,24 +2050,37 @@ class DescansoTela(tk.Tk):
                     gaiv_y = ponto_pouso[1] + (ponto_saida[1] - ponto_pouso[1]) * trecho - math.sin(trecho * math.pi) * 42
                     gaivota_carregando = cena["trofeu_tipo"] in {"peixe", "peixinho"}
 
-                batida_asa = math.sin(agora_ts * 12) * 11
-                self.canvas.coords(gaivota["corpo"], gaiv_x - 18, gaiv_y - 7, gaiv_x + 16, gaiv_y + 7)
-                self.canvas.coords(gaivota["cabeca"], gaiv_x - 24, gaiv_y - 6, gaiv_x - 12, gaiv_y + 6)
-                self.canvas.coords(gaivota["bico"], gaiv_x - 28, gaiv_y - 2, gaiv_x - 42, gaiv_y + 1, gaiv_x - 28, gaiv_y + 4)
-                self.canvas.coords(gaivota["olho"], gaiv_x - 21, gaiv_y - 2, gaiv_x - 19, gaiv_y, )
+                batida_asa = math.sin(agora_ts * 12) * 9
+                # Silhueta de gaivota de perfil: asas, cauda bifurcada e peito claro.
+                self.canvas.coords(gaivota["sombra"], gaiv_x - 21, gaiv_y - 4, gaiv_x + 19, gaiv_y + 10)
+                self.canvas.coords(gaivota["corpo"], gaiv_x - 19, gaiv_y - 8, gaiv_x + 17, gaiv_y + 9)
+                self.canvas.coords(gaivota["peito"], gaiv_x - 20, gaiv_y - 4, gaiv_x + 1, gaiv_y + 8)
+                self.canvas.coords(gaivota["cabeca"], gaiv_x - 27, gaiv_y - 8, gaiv_x - 11, gaiv_y + 7)
+                self.canvas.coords(gaivota["bico"], gaiv_x - 28, gaiv_y - 2, gaiv_x - 43, gaiv_y + 1, gaiv_x - 28, gaiv_y + 4)
+                self.canvas.coords(gaivota["olho"], gaiv_x - 22, gaiv_y - 3, gaiv_x - 19, gaiv_y)
                 self.canvas.coords(
                     gaivota["asa_esq"],
-                    gaiv_x - 4, gaiv_y - 2,
-                    gaiv_x + 12, gaiv_y - 18 - batida_asa,
-                    gaiv_x + 28, gaiv_y - 6,
+                    gaiv_x - 10, gaiv_y - 3,
+                    gaiv_x + 5, gaiv_y - 26 - batida_asa,
+                    gaiv_x + 28, gaiv_y - 18 - batida_asa * 0.4,
+                    gaiv_x + 14, gaiv_y + 1,
                 )
                 self.canvas.coords(
                     gaivota["asa_dir"],
-                    gaiv_x - 2, gaiv_y + 1,
-                    gaiv_x + 10, gaiv_y + 14 + batida_asa * 0.35,
-                    gaiv_x + 24, gaiv_y + 5,
+                    gaiv_x - 4, gaiv_y + 1,
+                    gaiv_x + 13, gaiv_y + 18 + batida_asa * 0.35,
+                    gaiv_x + 28, gaiv_y + 9,
+                    gaiv_x + 12, gaiv_y - 1,
                 )
-                for chave in ("asa_esq", "asa_dir", "corpo", "cabeca", "bico", "olho"):
+                self.canvas.coords(
+                    gaivota["cauda"],
+                    gaiv_x + 14, gaiv_y - 3,
+                    gaiv_x + 31, gaiv_y - 10,
+                    gaiv_x + 25, gaiv_y,
+                    gaiv_x + 33, gaiv_y + 7,
+                    gaiv_x + 14, gaiv_y + 5,
+                )
+                for chave in ("sombra", "asa_esq", "asa_dir", "cauda", "corpo", "peito", "cabeca", "bico", "olho"):
                     self.canvas.itemconfig(gaivota[chave], state="normal")
                 if gaivota_carregando:
                     self._desenhar_forma_captura(
@@ -1701,19 +2098,29 @@ class DescansoTela(tk.Tk):
                     self._ocultar_forma_captura(gaivota)
         else:
             self._ocultar_forma_captura(gaivota)
-            for chave in ("asa_esq", "asa_dir", "corpo", "cabeca", "bico", "olho"):
+            for chave in ("sombra", "asa_esq", "asa_dir", "cauda", "corpo", "peito", "cabeca", "bico", "olho"):
                 self.canvas.itemconfig(gaivota[chave], state="hidden")
 
         estado = cena["estado"]
         pode_pescar = cena["pescador_modo"] == "pescando"
         if pode_pescar and estado == "idle" and agora_ts >= cena["proximo_evento"]:
-            cena["estado"] = "puxando"
+            proxima_acao = random.choices(("pesca", "coco", "aviao"), weights=(6, 2, 2), k=1)[0]
             cena["evento_inicio"] = agora_ts
-            cena["evento_ate"] = agora_ts + random.uniform(2.8, 4.0)
-            cena["captura_tipo"] = random.choice([
-                "peixe", "peixe", "peixinho",
-                "bota", "bigorna", "pneu",
-            ])
+            cena["acao_tipo"] = proxima_acao
+            if proxima_acao == "coco":
+                cena["estado"] = "coco_caminhando"
+                cena["pescador_modo"] = "indo_coqueiro"
+                cena["evento_ate"] = float("inf")
+            elif proxima_acao == "aviao":
+                cena["estado"] = "aviao_observando"
+                cena["evento_ate"] = agora_ts + 7.5
+            else:
+                cena["estado"] = "puxando"
+                cena["evento_ate"] = agora_ts + random.uniform(2.8, 4.0)
+                cena["captura_tipo"] = random.choice([
+                    "peixe", "peixe", "peixinho",
+                    "bota", "bigorna", "pneu",
+                ])
         elif pode_pescar and estado == "puxando" and agora_ts >= cena["evento_ate"]:
             cena["estado"] = "arremessando"
             cena["evento_inicio"] = agora_ts
@@ -1730,7 +2137,36 @@ class DescansoTela(tk.Tk):
             cena["captura_tipo"] = ""
             cena["evento_inicio"] = agora_ts
             cena["proximo_evento"] = agora_ts + random.uniform(16, 28)
+            cena["acao_tipo"] = ""
+        elif estado == "coco_balancando" and agora_ts >= cena["evento_ate"]:
+            cena["estado"] = "coco_recebendo"
+            cena["evento_inicio"] = agora_ts
+            cena["evento_ate"] = agora_ts + 1.5
+        elif estado == "coco_recebendo" and agora_ts >= cena["evento_ate"]:
+            cena["estado"] = "coco_bebendo"
+            cena["evento_inicio"] = agora_ts
+            cena["evento_ate"] = agora_ts + 5.0
+        elif estado == "coco_bebendo" and agora_ts >= cena["evento_ate"]:
+            cena["estado"] = "coco_retornando"
+            cena["pescador_modo"] = "voltando_coqueiro"
+            cena["evento_inicio"] = agora_ts
+            cena["evento_ate"] = float("inf")
+        elif pode_pescar and estado == "aviao_observando" and agora_ts >= cena["evento_ate"]:
+            cena["estado"] = "idle"
+            cena["acao_tipo"] = ""
+            cena["evento_inicio"] = agora_ts
+            cena["proximo_evento"] = agora_ts + random.uniform(18, 32)
 
+        estado = cena["estado"]
+        deslocamento_coqueiro = 0.0
+        if estado == "coco_balancando":
+            fase_coqueiro = min(1.0, max(0.0, (agora_ts - cena["evento_inicio"]) / 2.6))
+            deslocamento_coqueiro = math.sin(fase_coqueiro * math.pi * 7) * 4
+        delta_coqueiro = deslocamento_coqueiro - cena["coqueiro_deslocamento"]
+        if delta_coqueiro:
+            for item in [cena["coqueiro_tronco"], *cena["marcas_tronco"], *cena["folhas"], *cena["cocos"]]:
+                self.canvas.move(item, delta_coqueiro, 0)
+        cena["coqueiro_deslocamento"] = deslocamento_coqueiro
         if cena["estado"] == "idle":
             progresso = math.sin(agora_ts * 1.4) * 0.5 + 0.5
         else:
@@ -1743,8 +2179,8 @@ class DescansoTela(tk.Tk):
 
         base_x = cena["pescador_x"]
         base_y = cena["pescador_y"]
-        andando = cena["pescador_modo"] in {"fugindo", "voltando"}
-        direcao_andando = -1 if cena["pescador_modo"] == "fugindo" else 1
+        andando = cena["pescador_modo"] in {"fugindo", "voltando", "indo_coqueiro", "voltando_coqueiro"}
+        direcao_andando = -1 if cena["pescador_modo"] in {"fugindo", "indo_coqueiro"} else 1
         balanco = 0 if andando else math.sin(agora_ts * 1.1) * 3
         inclinacao = -20 if andando else (-12 - (18 * progresso if cena["estado"] != "idle" else 0))
         torso_topo_x = base_x - 6 + balanco
@@ -1769,6 +2205,38 @@ class DescansoTela(tk.Tk):
             ponta_y = mao_y + inclinacao
             linha_x = ponta_x + 14
             linha_y = max(horizonte + 18, ponta_y + 56 + (1 - progresso) * 34)
+
+        if estado == "coco_balancando":
+            fase_coco = min(1.0, max(0.0, (agora_ts - cena["evento_inicio"]) / 2.6))
+            mao_x = base_x - 20 + math.sin(fase_coco * math.pi * 7) * 8
+            mao_y = base_y - 38
+            ponta_x = mao_x
+            ponta_y = mao_y
+            linha_x = mao_x
+            linha_y = mao_y
+        elif estado == "coco_recebendo":
+            # Depois de balancar o tronco, ele estende a mao sob os cocos.
+            mao_x = base_x + 28
+            mao_y = torso_topo_y - 2
+            ponta_x = mao_x
+            ponta_y = mao_y
+            linha_x = mao_x
+            linha_y = mao_y
+        elif estado == "coco_bebendo":
+            mao_x = torso_topo_x + 15
+            mao_y = torso_topo_y - 4
+            ponta_x = mao_x
+            ponta_y = mao_y
+            linha_x = mao_x
+            linha_y = mao_y
+        elif estado == "aviao_observando":
+            olhar = math.sin(agora_ts * 2.8) * 7
+            mao_x = torso_topo_x + 10 + olhar
+            mao_y = torso_topo_y - 10
+            ponta_x = mao_x
+            ponta_y = mao_y
+            linha_x = mao_x
+            linha_y = mao_y
         captura_x = linha_x + 18
         captura_y = linha_y - 10
 
@@ -1792,8 +2260,19 @@ class DescansoTela(tk.Tk):
             cena["base_x"] + 18, cena["base_y"] + 16,
         )
         self.canvas.coords(pescador["tronco"], torso_base_x, torso_base_y, torso_topo_x, torso_topo_y)
+        self.canvas.coords(
+            pescador["camisa"],
+            torso_topo_x - 7, torso_topo_y + 1,
+            torso_topo_x + 9, torso_topo_y + 4,
+            torso_base_x + 8, torso_base_y - 5,
+            torso_base_x - 7, torso_base_y - 3,
+        )
+        self.canvas.coords(pescador["colete"], torso_topo_x + 1, torso_topo_y + 5, torso_base_x + 1, torso_base_y - 5)
+        self.canvas.coords(pescador["bermuda"], torso_base_x - 7, torso_base_y - 3, torso_base_x + 10, torso_base_y + 2)
         self.canvas.coords(pescador["perna1"], base_x - 2, base_y, base_x - 16 + passo_perna, base_y + 24)
         self.canvas.coords(pescador["perna2"], base_x + 6, base_y, base_x + 24 - passo_perna, base_y + 22)
+        self.canvas.coords(pescador["sapato1"], base_x - 16 + passo_perna, base_y + 24, base_x - 23 + passo_perna, base_y + 25)
+        self.canvas.coords(pescador["sapato2"], base_x + 24 - passo_perna, base_y + 22, base_x + 31 - passo_perna, base_y + 23)
         self.canvas.coords(pescador["braco"], ombro_x, ombro_y, mao_x, mao_y)
         self.canvas.coords(
             pescador["vara"],
@@ -1803,17 +2282,83 @@ class DescansoTela(tk.Tk):
         )
         self.canvas.coords(pescador["linha"], ponta_x, ponta_y, linha_x, linha_y)
         self.canvas.coords(pescador["cabeca"], torso_topo_x - 12, torso_topo_y - 20, torso_topo_x + 12, torso_topo_y + 4)
+        if estado in {"coco_recebendo", "coco_bebendo"}:
+            direcao_rosto = 1  # O coco esta na mao direita durante essa sequencia.
+        else:
+            direcao_rosto = -1 if cena["pescador_modo"] in {"fugindo", "indo_coqueiro", "no_coqueiro"} else 1
+        orelha_x = torso_topo_x - direcao_rosto * 11
+        self.canvas.coords(pescador["orelha"], orelha_x - 3, torso_topo_y - 8, orelha_x + 3, torso_topo_y - 1)
+        self.canvas.coords(
+            pescador["nariz"],
+            torso_topo_x + direcao_rosto * 10, torso_topo_y - 10,
+            torso_topo_x + direcao_rosto * 18, torso_topo_y - 7,
+            torso_topo_x + direcao_rosto * 10, torso_topo_y - 4,
+        )
+        olho_x = torso_topo_x + direcao_rosto * 6
+        self.canvas.coords(pescador["olho"], olho_x - 2, torso_topo_y - 12, olho_x + 2, torso_topo_y - 9)
+        self.canvas.coords(
+            pescador["barba"],
+            torso_topo_x + direcao_rosto * 2, torso_topo_y - 1,
+            torso_topo_x + direcao_rosto * 13, torso_topo_y - 4,
+            torso_topo_x + direcao_rosto * 9, torso_topo_y + 5,
+            torso_topo_x - direcao_rosto * 3, torso_topo_y + 3,
+        )
         self.canvas.coords(
             pescador["chapeu"],
             torso_topo_x - 18, torso_topo_y - 10,
             torso_topo_x + 16, torso_topo_y - 10,
             torso_topo_x + 6, torso_topo_y - 22,
         )
+        self.canvas.coords(pescador["chapeu_faixa"], torso_topo_x - 11, torso_topo_y - 12, torso_topo_x + 11, torso_topo_y - 12)
+
+        acoes = cena["acoes"]
+        for item in acoes.values():
+            self.canvas.itemconfig(item, state="hidden")
+        acao_especial = estado in {
+            "coco_caminhando", "coco_balancando", "coco_recebendo", "coco_bebendo", "coco_retornando", "aviao_observando"
+        }
+        self.canvas.itemconfig(pescador["vara"], state="hidden" if acao_especial else "normal")
+        self.canvas.itemconfig(pescador["linha"], state="hidden" if acao_especial else "normal")
+
+        if estado == "coco_recebendo":
+            fase_coco = min(1.0, max(0.0, (agora_ts - cena["evento_inicio"]) / 1.5))
+            inicio_coco_x = mao_x + 3
+            inicio_coco_y = int(alt * 0.57) + 8
+            coco_x = inicio_coco_x + (mao_x - inicio_coco_x) * fase_coco
+            coco_y = inicio_coco_y + (mao_y - inicio_coco_y) * fase_coco * fase_coco
+            self.canvas.coords(acoes["coco_caindo"], coco_x - 10, coco_y - 10, coco_x + 10, coco_y + 10)
+            self.canvas.itemconfig(acoes["coco_caindo"], state="normal")
+        elif estado == "coco_bebendo":
+            self.canvas.coords(acoes["coco_aberto"], mao_x - 11, mao_y - 6, mao_x + 11, mao_y + 14)
+            self.canvas.coords(acoes["coco_polpa"], mao_x - 8, mao_y - 3, mao_x + 8, mao_y + 11)
+            self.canvas.itemconfig(acoes["coco_aberto"], state="normal")
+            self.canvas.itemconfig(acoes["coco_polpa"], state="normal")
+        elif estado == "aviao_observando":
+            fase_aviao = min(1.0, max(0.0, (agora_ts - cena["evento_inicio"]) / 7.5))
+            aviao_x = larg * (0.08 + fase_aviao * 0.84)
+            aviao_y = alt * 0.20 + math.sin(fase_aviao * math.pi * 2) * 12
+            self.canvas.coords(
+                acoes["aviao_corpo"],
+                aviao_x - 17, aviao_y,
+                aviao_x + 16, aviao_y - 4,
+                aviao_x + 23, aviao_y,
+                aviao_x + 16, aviao_y + 4,
+            )
+            self.canvas.coords(acoes["aviao_asa"], aviao_x - 3, aviao_y, aviao_x + 7, aviao_y - 13, aviao_x + 10, aviao_y + 2)
+            self.canvas.coords(acoes["aviao_cauda"], aviao_x - 14, aviao_y - 2, aviao_x - 19, aviao_y - 10, aviao_x - 7, aviao_y - 3)
+            olhar = math.sin(agora_ts * 2.8) * 7
+            bino_x = torso_topo_x + 14 + olhar
+            bino_y = torso_topo_y - 12
+            self.canvas.coords(acoes["binoculo_esq"], bino_x - 10, bino_y - 6, bino_x, bino_y + 5)
+            self.canvas.coords(acoes["binoculo_dir"], bino_x + 2, bino_y - 6, bino_x + 12, bino_y + 5)
+            self.canvas.coords(acoes["binoculo_ponte"], bino_x, bino_y, bino_x + 2, bino_y)
+            for chave in ("aviao_corpo", "aviao_asa", "aviao_cauda", "binoculo_esq", "binoculo_dir", "binoculo_ponte"):
+                self.canvas.itemconfig(acoes[chave], state="normal")
 
         ripple_cx = linha_x
         ripple_cy = linha_y + 6
         for indice, item in enumerate(cena["ripples"]):
-            if andando:
+            if andando or acao_especial:
                 self.canvas.itemconfig(item, state="hidden")
             else:
                 raio = 10 + indice * 12 + math.sin(agora_ts * 3 + indice) * 2
@@ -1849,6 +2394,8 @@ class DescansoTela(tk.Tk):
                     "bigorna_topo": pescador["captura_bigorna_topo"],
                     "pneu_externo": pescador["captura_pneu_externo"],
                     "pneu_interno": pescador["captura_pneu_interno"],
+                    "pneu_aro": pescador["captura_pneu_aro"],
+                    "pneu_brilho": pescador["captura_pneu_brilho"],
                 },
                 cena["captura_tipo"],
                 captura_x,
@@ -1867,6 +2414,8 @@ class DescansoTela(tk.Tk):
                     "bigorna_topo": pescador["captura_bigorna_topo"],
                     "pneu_externo": pescador["captura_pneu_externo"],
                     "pneu_interno": pescador["captura_pneu_interno"],
+                    "pneu_aro": pescador["captura_pneu_aro"],
+                    "pneu_brilho": pescador["captura_pneu_brilho"],
                 }
             )
 
@@ -2500,6 +3049,155 @@ class DescansoTela(tk.Tk):
     # RELÓGIO EM TEMPO REAL
     # ------------------------------------------------------------------
 
+    def _verificar_agendamentos_banner(self, agora):
+        """Coloca em fila as mensagens cujo horario chegou, uma vez por dia."""
+        for indice, agendamento in enumerate(self.config_dados.get("agendamentos_banner", [])[:8]):
+            horario = str(agendamento.get("horario", ""))
+            mensagem = str(agendamento.get("mensagem", "")).strip()
+            try:
+                hora, minuto = (int(valor) for valor in horario.split(":", 1))
+            except (TypeError, ValueError):
+                continue
+            if not (0 <= hora <= 23 and 0 <= minuto <= 59 and mensagem):
+                continue
+            chave = (agora.date().isoformat(), indice, hora, minuto)
+            if agora.hour == hora and agora.minute == minuto and chave not in self._agendamentos_disparados:
+                self._agendamentos_disparados.add(chave)
+                self._fila_banners_agendados.append({"mensagem": mensagem, "horario": horario})
+
+        if not self._banner_agendado_ativo and self._fila_banners_agendados:
+            self._iniciar_banner_agendado(self._fila_banners_agendados.pop(0))
+
+    def _iniciar_banner_agendado(self, agendamento):
+        """Inicia uma passagem de aviao com banner no topo da tela."""
+        self._banner_agendado_ativo = {
+            **agendamento,
+            "inicio": time.time(),
+            "duracao": 30.0,
+        }
+        self._loop_banner_agendado()
+
+    def _loop_banner_agendado(self):
+        """Desenha o aviao e seu banner em movimento suave."""
+        ativo = self._banner_agendado_ativo
+        if not ativo:
+            return
+        agora_ts = time.time()
+        progresso = (agora_ts - ativo["inicio"]) / ativo["duracao"]
+        self.canvas.delete("banner_agendado")
+        if progresso >= 1.0:
+            self._banner_agendado_ativo = None
+            if self._fila_banners_agendados:
+                self._iniciar_banner_agendado(self._fila_banners_agendados.pop(0))
+            return
+
+        larg = self.winfo_width()
+        alt = self.winfo_height()
+        if larg < 100 or alt < 100:
+            self._banner_agendado_after = self.after(60, self._loop_banner_agendado)
+            return
+
+        mensagem = ativo["mensagem"]
+        fonte = tkfont.Font(family="Segoe UI", size=max(27, min(44, int(larg / 42))), weight="bold")
+        largura_texto = fonte.measure(mensagem)
+        largura_banner = min(int(larg * 0.78), max(640, largura_texto + 120))
+        altura_banner = 118
+        y_banner = max(78, int(alt * 0.105))
+        aviao_x = -300 + (larg + largura_banner + 600) * progresso
+        banner_x2 = aviao_x - 132
+        banner_x1 = banner_x2 - largura_banner
+        banner_y1 = y_banner - altura_banner // 2
+        banner_y2 = y_banner + altura_banner // 2
+        ondulacao = math.sin(agora_ts * 7.0) * 7
+        ondulacao_meio = math.sin(agora_ts * 7.0 + 1.8) * 5
+
+        # Cabos que prendem o banner ao aviao.
+        self.canvas.create_line(aviao_x - 48, y_banner - 20, banner_x2, banner_y1 + 18 + ondulacao, fill="#C9E7F0", width=3, tags="banner_agendado")
+        self.canvas.create_line(aviao_x - 48, y_banner + 20, banner_x2, banner_y2 - 18 + ondulacao, fill="#C9E7F0", width=3, tags="banner_agendado")
+        sombra_banner = (
+            banner_x1 + 7, banner_y1 + ondulacao + 7,
+            (banner_x1 + banner_x2) / 2, banner_y1 + ondulacao_meio + 7,
+            banner_x2 + 7, banner_y1 + ondulacao + 7,
+            banner_x2 + 7, banner_y2 + ondulacao + 7,
+            (banner_x1 + banner_x2) / 2, banner_y2 - ondulacao_meio + 7,
+            banner_x1 + 7, banner_y2 - ondulacao + 7,
+        )
+        tecido_banner = (
+            banner_x1, banner_y1 + ondulacao,
+            (banner_x1 + banner_x2) / 2, banner_y1 + ondulacao_meio,
+            banner_x2, banner_y1 + ondulacao,
+            banner_x2, banner_y2 + ondulacao,
+            (banner_x1 + banner_x2) / 2, banner_y2 - ondulacao_meio,
+            banner_x1, banner_y2 - ondulacao,
+        )
+        self.canvas.create_polygon(*sombra_banner, fill="#071522", outline="", tags="banner_agendado")
+        self.canvas.create_polygon(*tecido_banner, fill="#F5FAFC", outline="#00BCD4", width=4, smooth=True, splinesteps=16, tags="banner_agendado")
+        self.canvas.create_text(
+            (banner_x1 + banner_x2) / 2,
+            y_banner,
+            text=mensagem,
+            font=fonte,
+            fill="#0A3140",
+            width=largura_banner - 62,
+            justify="center",
+            tags="banner_agendado",
+        )
+        # Aviao de perfil com detalhes suficientes para leitura a distancia.
+        self.canvas.create_polygon(
+            aviao_x - 64, y_banner - 7,
+            aviao_x + 42, y_banner - 16,
+            aviao_x + 76, y_banner - 4,
+            aviao_x + 90, y_banner + 3,
+            aviao_x + 70, y_banner + 12,
+            aviao_x - 58, y_banner + 14,
+            fill="#EAF5FA", outline="#46697A", width=2, tags="banner_agendado",
+        )
+        self.canvas.create_polygon(
+            aviao_x - 18, y_banner - 8,
+            aviao_x + 30, y_banner - 48,
+            aviao_x + 53, y_banner - 43,
+            aviao_x + 17, y_banner - 4,
+            fill="#BED8E3", outline="#46697A", width=2, tags="banner_agendado",
+        )
+        self.canvas.create_polygon(
+            aviao_x - 28, y_banner + 8,
+            aviao_x + 36, y_banner + 35,
+            aviao_x + 52, y_banner + 27,
+            aviao_x + 4, y_banner + 5,
+            fill="#9CC4D4", outline="#46697A", width=2, tags="banner_agendado",
+        )
+        self.canvas.create_polygon(
+            aviao_x - 55, y_banner - 7,
+            aviao_x - 86, y_banner - 34,
+            aviao_x - 37, y_banner - 13,
+            fill="#B7D1DC", outline="#46697A", width=2, tags="banner_agendado",
+        )
+        self.canvas.create_polygon(
+            aviao_x + 10, y_banner - 17,
+            aviao_x + 31, y_banner - 35,
+            aviao_x + 48, y_banner - 16,
+            fill="#174B62", outline="#78B9D0", width=1, tags="banner_agendado",
+        )
+        self.canvas.create_line(aviao_x + 6, y_banner + 13, aviao_x + 3, y_banner + 28, fill="#46697A", width=2, tags="banner_agendado")
+        self.canvas.create_line(aviao_x + 37, y_banner + 10, aviao_x + 42, y_banner + 25, fill="#46697A", width=2, tags="banner_agendado")
+        self.canvas.create_oval(aviao_x - 2, y_banner + 25, aviao_x + 12, y_banner + 35, fill="#25343C", outline="#A4BAC4", width=1, tags="banner_agendado")
+        self.canvas.create_oval(aviao_x + 34, y_banner + 22, aviao_x + 48, y_banner + 32, fill="#25343C", outline="#A4BAC4", width=1, tags="banner_agendado")
+        self.canvas.create_line(aviao_x + 89, y_banner - 22, aviao_x + 89, y_banner + 24, fill="#E5F4F8", width=3, tags="banner_agendado")
+        self.canvas.create_oval(aviao_x + 84, y_banner - 2, aviao_x + 94, y_banner + 8, fill="#F0B93F", outline="#805C14", width=1, tags="banner_agendado")
+        self._banner_agendado_after = self.after(45, self._loop_banner_agendado)
+
+    def _parar_banner_agendado(self):
+        """Cancela a animacao do banner ao sair da tela."""
+        self._banner_agendado_ativo = None
+        self._fila_banners_agendados = []
+        if self._banner_agendado_after:
+            try:
+                self.after_cancel(self._banner_agendado_after)
+            except Exception:
+                pass
+            self._banner_agendado_after = None
+        self.canvas.delete("banner_agendado")
+
     def _loop_relogio(self):
         """Atualiza o relógio a cada 1 segundo via itemconfig (sem recriar o canvas)."""
         agora_dt = datetime.now()
@@ -2511,6 +3209,7 @@ class DescansoTela(tk.Tk):
         except Exception:
             pass
         self._atualizar_alerta_horario(agora_dt)
+        self._verificar_agendamentos_banner(agora_dt)
         self.after(1000, self._loop_relogio)
 
     # ------------------------------------------------------------------
@@ -2752,6 +3451,7 @@ class DescansoTela(tk.Tk):
     def _sair_tela_cheia(self, event=None):
         """ESC: para a rádio e fecha a janela."""
         self._parar_animacao_alerta()
+        self._parar_banner_agendado()
         self._parar_animacao_pescador()
         self._parar_radio()
         self.destroy()

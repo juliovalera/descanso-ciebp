@@ -1,6 +1,6 @@
 {
   "evento": "Planejamento e estudo",
-  "data": "19/08/2026",
+  "data": "21/08/2026",
   "mensagem_boas_vindas": "Bem-vindo(a) ao CIEBP! Prepare-se para uma experiência incrível de inovação e aprendizagem.",
   "professores": [
     "Júlio e Alessandro"
@@ -41,5 +41,6 @@
   },
   "logo": "assets/Logo-colorido.png",
   "fundo_padrao": "Ilha do Pescador",
-  "intervalo_tubarao_minutos": 1
+  "intervalo_tubarao_minutos": 5,
+  "agendamentos_banner": []
 }
