@@ -193,6 +193,13 @@ class JanelaConfig(tk.Tk):
         self.var_posicao_relogio = tk.StringVar(value=config.get("posicao_relogio", "Central (grande)"))
         self.var_audio_local = tk.StringVar(value=config.get("audio_local", ""))
         self.var_fundo = tk.StringVar(value=config.get("fundo_padrao", "Padrão do espaço"))
+        self.var_modo_fundos = tk.StringVar(value=config.get("modo_fundos", "Individual"))
+        duracoes_fundos = config.get("duracao_fundos_minutos", {})
+        self.var_duracao_fundos = {
+            "pescador": tk.StringVar(value=str(duracoes_fundos.get("pescador", 10))),
+            "blocos": tk.StringVar(value=str(duracoes_fundos.get("blocos", 10))),
+            "voo": tk.StringVar(value=str(duracoes_fundos.get("voo", 10))),
+        }
         self.var_alerta_teste = tk.StringVar(value="Aviso de almoço")
         self.var_intervalo_tubarao = tk.StringVar(
             value=str(config.get("intervalo_tubarao_minutos", 10))
@@ -471,6 +478,24 @@ class JanelaConfig(tk.Tk):
             height=8
         )
         self.combo_fundo.pack(fill="x", ipady=4)
+
+        frame_alternancia = tk.Frame(F, bg="#10243A")
+        frame_alternancia.pack(fill="x", padx=30, pady=(0, 8))
+        tk.Label(frame_alternancia, text="Modo de apresentação", font=("Segoe UI", 10, "bold"), fg="#E3EDF5", bg="#10243A", anchor="w").pack(fill="x", padx=10, pady=(8, 1))
+        tk.Label(frame_alternancia, text="Individual usa o fundo escolhido acima. Alternar percorre os três cenários animados em loop.", font=("Segoe UI", 8), fg="#9CB2C6", bg="#10243A", anchor="w", wraplength=500, justify="left").pack(fill="x", padx=10, pady=(0, 5))
+        combo_modo_fundos = ttk.Combobox(frame_alternancia, textvariable=self.var_modo_fundos, values=("Individual", "Alternar cenários"), state="readonly", width=24, font=("Segoe UI", 9), style="Institucional.TCombobox")
+        combo_modo_fundos.pack(fill="x", padx=10, pady=(0, 7), ipady=2)
+
+        tk.Label(frame_alternancia, text="Duração de cada cenário (minutos)", font=("Segoe UI", 9, "bold"), fg="#B8C7D6", bg="#10243A", anchor="w").pack(fill="x", padx=10, pady=(0, 3))
+        linha_duracoes = tk.Frame(frame_alternancia, bg="#10243A")
+        linha_duracoes.pack(fill="x", padx=10, pady=(0, 8))
+        for chave, rotulo in (("pescador", "Ilha"), ("blocos", "Blocos"), ("voo", "Voo")):
+            grupo = tk.Frame(linha_duracoes, bg="#10243A")
+            grupo.pack(side="left", expand=True, fill="x", padx=2)
+            tk.Label(grupo, text=rotulo, font=("Segoe UI", 8, "bold"), fg="#B8C7D6", bg="#10243A").pack(anchor="w")
+            entrada = tk.Entry(grupo, textvariable=self.var_duracao_fundos[chave], font=("Segoe UI", 10), bg="#132336", fg="#ECEFF1", insertbackground="#ECEFF1", relief="flat", bd=0, highlightthickness=1, highlightbackground="#1E3A5F", highlightcolor="#00BCD4", justify="center")
+            entrada.pack(fill="x", ipady=3)
+            entrada.bind("<MouseWheel>", _on_wheel)
 
         frame_tubarao = tk.Frame(F, bg="#0D1B2A")
         frame_tubarao.pack(fill="x", padx=30, pady=(0, 6))
@@ -837,6 +862,14 @@ class JanelaConfig(tk.Tk):
         except ValueError:
             intervalo_tubarao = 10
         self.config_dados["intervalo_tubarao_minutos"] = intervalo_tubarao
+        self.config_dados["modo_fundos"] = self.var_modo_fundos.get().strip()
+        duracoes_fundos = {}
+        for chave, variavel in self.var_duracao_fundos.items():
+            try:
+                duracoes_fundos[chave] = max(1, min(120, int(float(variavel.get().strip() or "10"))))
+            except ValueError:
+                duracoes_fundos[chave] = 10
+        self.config_dados["duracao_fundos_minutos"] = duracoes_fundos
         agendamentos = []
         for var_horario, var_mensagem in self.var_agendamentos:
             horario = var_horario.get().strip()
@@ -853,7 +886,9 @@ class JanelaConfig(tk.Tk):
         espaco = self.espaco_escolhido.get()
         radio = self.radio_escolhida.get()
         fundo = self.var_fundo.get()
-        if fundo == "Padrão do espaço":
+        if self.var_modo_fundos.get() == "Alternar cenários":
+            fundo_path = "__alternar__"
+        elif fundo == "Padrão do espaço":
             fundo_path = ""
         elif fundo == "Ilha do Pescador":
             fundo_path = "__pescador__"
@@ -952,7 +987,11 @@ class DescansoTela(tk.Tk):
         self.config_dados = config
         self.espaco_atual = espaco
         self.radio_nome = radio_nome
-        self.fundo_path = fundo_path  # caminho relativo ou "" para usar o do espaço
+        self._modo_fundos_alternados = fundo_path == "__alternar__"
+        self._sequencia_fundos = ("__pescador__", "__blocos__", "__voo__")
+        self._indice_fundo_alternado = 0
+        self._alternancia_fundos_after = None
+        self.fundo_path = self._sequencia_fundos[0] if self._modo_fundos_alternados else fundo_path
         self.alerta_teste = alerta_teste
 
         # Configurações de volume (0–100)
@@ -1005,6 +1044,8 @@ class DescansoTela(tk.Tk):
         self._configurar_atalhos()
         self._atualizar_tela()
         self.after(350, self._forcar_foco_controle)
+        if self._modo_fundos_alternados:
+            self._agendar_proxima_troca_de_fundo()
         self._loop_relogio()
         # Inicia a rádio depois que a janela estiver completamente visível
         self.after(400, self._iniciar_radio)
@@ -1040,8 +1081,12 @@ class DescansoTela(tk.Tk):
         self.bind("<M>", self._alternar_mudo)
 
     def _pressionar_seta_voo(self, event):
-        """Setas assumem temporariamente o voo; fora dele, mantem o controle de volume."""
-        if self.fundo_path == "__voo__" and self._voo_cena:
+        """Setas assumem temporariamente o ator do cenário; fora deles controlam o volume."""
+        if (
+            (self.fundo_path == "__voo__" and self._voo_cena)
+            or (self.fundo_path == "__pescador__" and self._pescador_cena)
+            or (self.fundo_path == "__blocos__" and self._blocos_cena)
+        ):
             self._teclas_voo_pressionadas.add(event.keysym)
             return "break"
         if event.keysym == "Up":
@@ -1056,6 +1101,81 @@ class DescansoTela(tk.Tk):
 
     def _limpar_controle_voo(self, event=None):
         self._teclas_voo_pressionadas.clear()
+
+    def _direcao_controle_manual(self):
+        """Retorna a direção mantida no teclado, compartilhada pelos três cenários."""
+        teclas = self._teclas_voo_pressionadas
+        return (
+            (1 if "Right" in teclas else 0) - (1 if "Left" in teclas else 0),
+            (1 if "Down" in teclas else 0) - (1 if "Up" in teclas else 0),
+        )
+
+    def _mover_pescador_manual(self, cena):
+        """Move o pescador pela ilha enquanto uma seta estiver pressionada."""
+        direcao_x, direcao_y = self._direcao_controle_manual()
+        ativo = bool(direcao_x or direcao_y)
+        cena["controle_manual"] = ativo
+        if not ativo:
+            return False
+        cena["direcao_manual"] = direcao_x or cena.get("direcao_manual", 1)
+        cena["pescador_x"] = max(cena["larg"] * 0.12, min(cena["larg"] * 0.58, cena["pescador_x"] + direcao_x * 13))
+        cena["pescador_y"] = max(cena["alt"] * 0.61, min(cena["alt"] * 0.83, cena["pescador_y"] + direcao_y * 9))
+        return True
+
+    def _mover_construtor_manual(self, cena):
+        """Move o construtor pelo terreno; a obra continua assim que o comando termina."""
+        direcao_x, direcao_y = self._direcao_controle_manual()
+        ativo = bool(direcao_x or direcao_y)
+        cena["controle_manual"] = ativo
+        if not ativo:
+            return False
+        cena["construtor_x"] = max(cena["larg"] * 0.18, min(cena["larg"] * 0.82, cena["construtor_x"] + direcao_x * 12))
+        cena["construtor_y"] = max(cena["horizonte"] + 24, min(cena["alt"] * 0.84, cena["construtor_y"] + direcao_y * 9))
+        return True
+
+    def _duracao_fundo_atual_ms(self):
+        """Retorna a duracao configurada do cenario atual, em milissegundos."""
+        chave_por_fundo = {
+            "__pescador__": "pescador",
+            "__blocos__": "blocos",
+            "__voo__": "voo",
+        }
+        chave = chave_por_fundo.get(self.fundo_path, "pescador")
+        try:
+            minutos = int(self.config_dados.get("duracao_fundos_minutos", {}).get(chave, 10))
+        except (TypeError, ValueError):
+            minutos = 10
+        return max(1, min(120, minutos)) * 60_000
+
+    def _agendar_proxima_troca_de_fundo(self):
+        if not self._modo_fundos_alternados:
+            return
+        if self._alternancia_fundos_after is not None:
+            try:
+                self.after_cancel(self._alternancia_fundos_after)
+            except tk.TclError:
+                pass
+        self._alternancia_fundos_after = self.after(self._duracao_fundo_atual_ms(), self._trocar_fundo_alternado)
+
+    def _parar_alternancia_fundos(self):
+        """Cancela a proxima troca de cenario antes de fechar a tela."""
+        if self._alternancia_fundos_after is not None:
+            try:
+                self.after_cancel(self._alternancia_fundos_after)
+            except tk.TclError:
+                pass
+            self._alternancia_fundos_after = None
+
+    def _trocar_fundo_alternado(self):
+        """Avanca para o proximo cenario sem reiniciar dados, relogio ou audio."""
+        if not self._modo_fundos_alternados:
+            return
+        self._alternancia_fundos_after = None
+        self._indice_fundo_alternado = (self._indice_fundo_alternado + 1) % len(self._sequencia_fundos)
+        self.fundo_path = self._sequencia_fundos[self._indice_fundo_alternado]
+        self._limpar_controle_voo()
+        self._atualizar_tela()
+        self._agendar_proxima_troca_de_fundo()
 
     def _forcar_foco_controle(self, event=None):
         """Mantem a tela cheia como receptora das teclas em computadores com foco inicial instavel."""
@@ -2135,16 +2255,18 @@ class DescansoTela(tk.Tk):
             alvo_x = cena["base_x"]
             alvo_y = cena["base_y"]
 
-        cena["pescador_x"] = self._aproximar_valor(cena["pescador_x"], alvo_x, 7.5)
-        cena["pescador_y"] = self._aproximar_valor(cena["pescador_y"], alvo_y, 5.5)
+        controle_manual = self._mover_pescador_manual(cena)
+        if not controle_manual:
+            cena["pescador_x"] = self._aproximar_valor(cena["pescador_x"], alvo_x, 7.5)
+            cena["pescador_y"] = self._aproximar_valor(cena["pescador_y"], alvo_y, 5.5)
 
-        if (
+        if (not controle_manual and
             cena["pescador_modo"] == "voltando"
             and abs(cena["pescador_x"] - cena["base_x"]) < 4
             and abs(cena["pescador_y"] - cena["base_y"]) < 4
         ):
             cena["pescador_modo"] = "pescando"
-        elif (
+        elif (not controle_manual and
             cena["pescador_modo"] == "indo_coqueiro"
             and abs(cena["pescador_x"] - (cena["coqueiro_x"] + 18)) < 4
             and abs(cena["pescador_y"] - cena["coqueiro_y"]) < 4
@@ -2153,7 +2275,7 @@ class DescansoTela(tk.Tk):
             cena["estado"] = "coco_balancando"
             cena["evento_inicio"] = agora_ts
             cena["evento_ate"] = agora_ts + 2.6
-        elif (
+        elif (not controle_manual and
             cena["pescador_modo"] == "voltando_coqueiro"
             and abs(cena["pescador_x"] - cena["base_x"]) < 4
             and abs(cena["pescador_y"] - cena["base_y"]) < 4
@@ -2329,8 +2451,9 @@ class DescansoTela(tk.Tk):
 
         base_x = cena["pescador_x"]
         base_y = cena["pescador_y"]
-        andando = cena["pescador_modo"] in {"fugindo", "voltando", "indo_coqueiro", "voltando_coqueiro"}
-        direcao_andando = -1 if cena["pescador_modo"] in {"fugindo", "indo_coqueiro"} else 1
+        andando = controle_manual or cena["pescador_modo"] in {"fugindo", "voltando", "indo_coqueiro", "voltando_coqueiro"}
+        direcao_andando = (cena.get("direcao_manual", 1) if controle_manual
+                            else (-1 if cena["pescador_modo"] in {"fugindo", "indo_coqueiro"} else 1))
         balanco = 0 if andando else math.sin(agora_ts * 1.1) * 3
         inclinacao = -20 if andando else (-12 - (18 * progresso if cena["estado"] != "idle" else 0))
         torso_topo_x = base_x - 6 + balanco
@@ -2432,7 +2555,9 @@ class DescansoTela(tk.Tk):
         )
         self.canvas.coords(pescador["linha"], ponta_x, ponta_y, linha_x, linha_y)
         self.canvas.coords(pescador["cabeca"], torso_topo_x - 12, torso_topo_y - 20, torso_topo_x + 12, torso_topo_y + 4)
-        if estado in {"coco_recebendo", "coco_bebendo"}:
+        if controle_manual and cena.get("direcao_manual"):
+            direcao_rosto = cena["direcao_manual"]
+        elif estado in {"coco_recebendo", "coco_bebendo"}:
             direcao_rosto = 1  # O coco esta na mao direita durante essa sequencia.
         else:
             direcao_rosto = -1 if cena["pescador_modo"] in {"fugindo", "indo_coqueiro", "no_coqueiro"} else 1
@@ -2867,10 +2992,15 @@ class DescansoTela(tk.Tk):
             alvo_x, alvo_y = obras[indice_obra]["alvo"]
             texto_acao = ("Consertando " if reparando else "Construindo ") + obras[indice_obra]["nome"]
 
-        cena["construtor_x"] = self._aproximar_valor(cena["construtor_x"], alvo_x, 3.6)
-        cena["construtor_y"] = self._aproximar_valor(cena["construtor_y"], alvo_y, 2.2)
+        controle_manual = self._mover_construtor_manual(cena)
+        if not controle_manual:
+            cena["construtor_x"] = self._aproximar_valor(cena["construtor_x"], alvo_x, 3.6)
+            cena["construtor_y"] = self._aproximar_valor(cena["construtor_y"], alvo_y, 2.2)
         x, y = cena["construtor_x"], cena["construtor_y"]
-        em_acao = indice_obra is not None and abs(x - alvo_x) < 5 and abs(y - alvo_y) < 4
+        em_acao = (not controle_manual and indice_obra is not None
+                    and abs(x - alvo_x) < 5 and abs(y - alvo_y) < 4)
+        if controle_manual:
+            texto_acao = "Explorando o terreno"
         if em_acao and agora_ts >= cena["fim_acao"]:
             progresso[indice_obra] = min(len(obras[indice_obra]["blocos"]), progresso[indice_obra] + 1)
             cena["inicio_acao"] = agora_ts
@@ -4852,6 +4982,7 @@ class DescansoTela(tk.Tk):
 
     def _sair_tela_cheia(self, event=None):
         """ESC: para a rádio e fecha a janela."""
+        self._parar_alternancia_fundos()
         self._parar_animacao_alerta()
         self._parar_banner_agendado()
         self._parar_animacao_pescador()
