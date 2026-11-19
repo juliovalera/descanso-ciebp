@@ -370,6 +370,24 @@ class JanelaConfig(tk.Tk):
             combo_intermitencia = ttk.Combobox(linha_intermitencia, textvariable=self.var_intermitencia_textos[chave], values=opcoes_intermitencia, state="readonly", width=15, font=("Segoe UI", 9), style="Institucional.TCombobox")
             combo_intermitencia.pack(side="right", ipady=2)
 
+        frame_aparencia = tk.Frame(F, bg="#10243A")
+        frame_aparencia.pack(fill="x", padx=30, pady=(0, 8))
+        tk.Label(frame_aparencia, text="Opacidade e posicao do relogio", font=("Segoe UI", 10, "bold"), fg="#E3EDF5", bg="#10243A", anchor="w").pack(fill="x", padx=10, pady=(8, 1))
+        tk.Label(frame_aparencia, text="A opacidade reduz a intensidade visual sem ocultar o texto. O relogio compacto fica no canto inferior direito.", font=("Segoe UI", 8), fg="#9CB2C6", bg="#10243A", anchor="w", wraplength=500, justify="left").pack(fill="x", padx=10, pady=(0, 5))
+        opcoes_opacidade = ("100%", "75%", "50%", "25%")
+        for chave, rotulo in (("hora", "Hora"), ("evento", "Nome do evento"), ("legenda", "Legenda do espaco"), ("data", "Data"), ("professores", "Professores"), ("mensagem", "Mensagem")):
+            linha_opacidade = tk.Frame(frame_aparencia, bg="#10243A")
+            linha_opacidade.pack(fill="x", padx=10, pady=2)
+            tk.Label(linha_opacidade, text=rotulo, font=("Segoe UI", 9, "bold"), fg="#B8C7D6", bg="#10243A", width=19, anchor="w").pack(side="left")
+            combo_opacidade = ttk.Combobox(linha_opacidade, textvariable=self.var_opacidade_textos[chave], values=opcoes_opacidade, state="readonly", width=15, font=("Segoe UI", 9), style="Institucional.TCombobox")
+            combo_opacidade.pack(side="right", ipady=2)
+
+        linha_relogio = tk.Frame(frame_aparencia, bg="#10243A")
+        linha_relogio.pack(fill="x", padx=10, pady=(7, 8))
+        tk.Label(linha_relogio, text="Posicao do relogio", font=("Segoe UI", 9, "bold"), fg="#B8C7D6", bg="#10243A", width=19, anchor="w").pack(side="left")
+        combo_relogio = ttk.Combobox(linha_relogio, textvariable=self.var_posicao_relogio, values=("Central (grande)", "Inferior direito (compacto)"), state="readonly", width=24, font=("Segoe UI", 9), style="Institucional.TCombobox")
+        combo_relogio.pack(side="right", ipady=2)
+
         # Separador
         tk.Frame(F, bg="#1E3A5F", height=1).pack(fill="x", padx=30, pady=(2, 6))
 
