@@ -3667,6 +3667,24 @@ class DescansoTela(tk.Tk):
         cena["aviao_y"] = self._aproximar_valor(cena["aviao_y"], alvo_y, 11.0 if desvio_urgente else 3.0)
         x = cena["aviao_x"]
         aviao_y = cena["aviao_y"]
+
+        # Protecao final contra sobreposicao: o piloto se afasta antes de qualquer
+        # objeto fixo cruzar a fuselagem. Botes de resgate ficam de fora para
+        # permitir a aproximacao e o içamento das pessoas.
+        for obstaculo in cena["obstaculos"]:
+            if obstaculo["tipo"] == "resgate":
+                continue
+            if abs(obstaculo["x"] - x) < 76 and abs(obstaculo["y"] - aviao_y) < 62:
+                sentido_x = -1 if obstaculo["x"] >= x else 1
+                candidato_x = x + sentido_x * 94
+                if rio_esq + 38 <= candidato_x <= rio_dir - 38:
+                    x = candidato_x
+                else:
+                    sentido_y = -1 if obstaculo["y"] >= aviao_y else 1
+                    aviao_y = max(80, min(cena["hud_top"] - 52, aviao_y + sentido_y * 86))
+                cena["aviao_x"] = x
+                cena["aviao_y"] = aviao_y
+
         aviao = cena["aviao"]
         inclinacao = max(-15, min(15, (alvo_x - x) * 0.13))
         self.canvas.coords(aviao["sombra"], x - 33, aviao_y + 27, x - 9, aviao_y + 33, x + 34, aviao_y + 27, x + 12, aviao_y + 35, x - 12, aviao_y + 35)
@@ -3677,6 +3695,11 @@ class DescansoTela(tk.Tk):
         self.canvas.coords(aviao["cauda"], x - 8, aviao_y + 17, x - 18, aviao_y + 31, x + 18, aviao_y + 31, x + 8, aviao_y + 17)
         self.canvas.coords(aviao["motor_esq"], x - 28, aviao_y + 4 + inclinacao * 0.45, x - 15, aviao_y + 14 + inclinacao * 0.25)
         self.canvas.coords(aviao["motor_dir"], x + 15, aviao_y + 4 - inclinacao * 0.45, x + 28, aviao_y + 14 - inclinacao * 0.25)
+        # Obstaculos sao desenhados depois da aeronave. Reposiciona a aeronave
+        # apenas acima deles, mas ainda abaixo dos textos da apresentacao.
+        for item in aviao.values():
+            self.canvas.tag_raise(item, cena["pontuacao_box"])
+        self.canvas.tag_lower(aviao["sombra"], aviao["asas"])
 
         resgate_em_curso = next((item for item in cena["obstaculos"] if item["indice"] == cena["resgate_ativo"]), None)
         if resgate_em_curso and agora_ts - cena["resgate_inicio"] < 4.2:
