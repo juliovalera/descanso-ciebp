@@ -1,240 +1,136 @@
 # Tela de Espera para Eventos
 
-Aplicacao em Python para exibir uma tela de espera institucional em eventos, formacoes e momentos de organizacao do espaco.
+> Uma tela de espera animada para eventos, formações e momentos de organização do espaço.
 
-Ela mostra relogio em tempo real, dados do evento, mensagem de boas-vindas, reproduz audio local e permite escolher fundos visuais, incluindo um fundo animado com a **Ilha do Pescador**.
+Aplicação para Windows desenvolvida em Python. Exibe dados do evento, relógio em tempo real, música e cenários animados contínuos — tudo configurável por uma interface simples.
 
-## O que o projeto faz
+## Visão geral
 
-- Exibe a tela em modo cheio com identidade visual personalizavel.
-- Permite informar nome do evento, data, professores e mensagem.
-- Preenche a data atual automaticamente no launcher, com possibilidade de edicao.
-- Reproduz audio local com backend mais estavel.
-- Mostra alertas visuais programados 5 minutos antes de horarios importantes.
-- Oferece modo de teste para os avisos.
-- Permite escolher fundo estatico ou fundo animado.
+| Personalização | Animação | Uso prático |
+| --- | --- | --- |
+| Evento, data, equipe, mensagem e cores | Cenários vivos, relógio e avisos visuais | Tela cheia para projetores e TVs |
+| Opacidade, intermitência e posição do relógio | Música local, avião com banner e alertas | Configuração salva entre os usos |
 
-## Destaques atuais
+## Recursos principais
 
-- **Audio local mais estavel** com `pygame-ce`, com fallback para Windows Media Player e PowerShell quando necessario.
-- **Avisos animados** com confetes e foguetes nos horarios programados.
-- **Melhorias de legibilidade** nos textos da tela principal.
-- **Fundo "Ilha do Pescador"** com:
-  - sol se movimentando conforme o horario do dia
-  - reflexo do sol acompanhando a agua
-  - nuvens em deriva suave
-  - pescador com animacoes calmas, rosto orientado pela acao e caminhada ate o coqueiro
-  - pescarias engracadas com peixe, peixinho, bota, bigorna e pneu
-  - item arremessado para a ilha e exibido no chao
-  - gaivota que pode levar o peixe embora
-  - tubarao lento no mar
-  - caranguejo que sobe pela ilha
-  - pescador fugindo para o meio da ilha quando o tubarao se aproxima
-  - pescador balancando o coqueiro, recebendo e consumindo um coco
-  - aviao distante observado com binoculo
-  - cardume de peixinhos e golfinhos saltando ao fundo
+- **Dados do evento**: nome, data, equipe responsável, espaço e mensagem de boas-vindas.
+- **Data automática**: o campo começa com a data atual e pode ser alterado livremente.
+- **Textos personalizáveis**: cada texto possui cor própria, opacidade e opção de intermitência.
+- **Relógio flexível**: tamanho grande no centro ou versão compacta no canto inferior direito.
+- **Áudio de fundo**: reprodução de MP3 com alternativas para maior compatibilidade no Windows.
+- **Avisos programados**: animação chamativa cinco minutos antes de `12:00`, `17:00` e `18:00`.
+- **Mensagens aéreas**: até oito mensagens podem ser programadas; um avião leva o banner pelo alto da tela.
+- **Execução simples**: pressione `Enter` no launcher para iniciar a tela de espera ou `Esc` para sair dela.
 
-## Horarios dos avisos
+## Cenários disponíveis
 
-Os avisos sao disparados **5 minutos antes** destes horarios:
+### Ilha do Pescador
 
-- `11:55` - aviso de almoco
-- `16:55` - termino do expediente do primeiro professor
-- `17:55` - termino do expediente do segundo professor
+Uma cena tranquila, desenhada por código, que evolui continuamente sem exigir imagens adicionais.
 
-No uso normal, aparece apenas a animacao para chamar atencao.
-No launcher existe tambem um **modo de teste** para visualizar o aviso imediatamente.
+- Sol, céu e reflexo na água acompanham o horário do dia.
+- Nuvens, peixes e golfinhos se movimentam suavemente.
+- O pescador alterna ações: pesca itens divertidos, observa um avião, balança o coqueiro e consome um coco.
+- Uma gaivota pode buscar o peixe pescado; tubarão e caranguejo aparecem em intervalos configuráveis.
+
+### Mundo de Blocos
+
+Cena original em linguagem visual voxel, também criada por código.
+
+- Sol quadrado, lua e estrelas conforme o período do dia.
+- Construtor caminha pelo terreno e trabalha em obras completas, como cabana, oficina, torre, ponte e mirante.
+- Animais, horta, riacho, partículas de construção e elementos do céu mantêm o cenário vivo.
+- Uma criatura verde pode danificar uma obra durante o dia; o construtor prioriza o reparo antes de continuar.
+
+### Voo no Rio
+
+Uma animação de voo vertical em pixel art, sem combate e sem condição de derrota.
+
+- Aeronave com piloto automático, deslocamentos laterais e verticais para evitar obstáculos.
+- Rio, margens, barcos, helicópteros, ilhas e elementos de resgate em movimento contínuo.
+- Medidor de **combustível** em estilo arcade e rota de reabastecimento acessível antes do fim da reserva.
+- Ambiente leve e seguro: a navegação prossegue sem colisões ou explosões.
+
+## Mensagens agendadas no avião
+
+Cadastre até oito mensagens para horários específicos.
+
+1. Informe o horário no formato `HH:MM`. Ao digitar `1327`, o campo formata automaticamente para `13:27`.
+2. Escreva a mensagem ao lado do horário.
+3. No momento programado, o avião atravessa a parte superior da tela puxando um banner de alto contraste.
+
+Cada passagem leva aproximadamente 30 segundos. Linhas vazias, incompletas ou com horário inválido são ignoradas; mensagens do mesmo minuto entram em fila.
+
+## Textos, visibilidade e acessibilidade
+
+Os elementos abaixo podem ser configurados individualmente:
+
+| Elemento | Cor | Opacidade | Intermitência | Ocultar |
+| --- | :---: | :---: | :---: | :---: |
+| Hora | Sim | Sim | Sim | Sim |
+| Nome do evento | Sim | Sim | Sim | Sim |
+| Legenda do espaço | Sim | Sim | Sim | Sim |
+| Data | Sim | Sim | Sim | Sim |
+| Professores | Sim | Sim | Sim | Sim |
+| Mensagem | Sim | Sim | Sim | Sim |
+
+As opções de opacidade são `100%`, `75%`, `50%` e `25%`. A intermitência oferece intervalos de segundos e minutos, além de **Desligado** e **Ocultar**.
+
+## Avisos de horário
+
+Os avisos são iniciados cinco minutos antes dos horários a seguir:
+
+| Horário do aviso | Finalidade |
+| --- | --- |
+| `11:55` | Preparação para o almoço |
+| `16:55` | Término do expediente do primeiro professor |
+| `17:55` | Término do expediente do segundo professor |
+
+O launcher também possui um modo de teste para conferir a animação imediatamente.
 
 ## Requisitos
 
 - Windows 10 ou Windows 11
 - Python 3.10 ou superior
-- `tkinter` disponivel na instalacao do Python
+- `tkinter` disponível na instalação do Python
 
-## Dependencias
-
-Instale com:
+## Instalação e execução
 
 ```bash
 pip install -r requirements.txt
-```
-
-Pacotes usados:
-
-- `Pillow` para tratamento de imagens
-- `pygame-ce` para reproducao de audio local
-- `pywin32` para integracao com recursos do Windows
-
-## Como executar
-
-```bash
 python main.py
 ```
 
+Dependências utilizadas:
+
+- `Pillow` — tratamento de imagens
+- `pygame-ce` — reprodução de áudio local
+- `pywin32` — integração com recursos do Windows
+
 ## Como usar
 
-1. Abra o launcher.
-2. Preencha ou ajuste os dados do evento.
-3. Escolha o espaco, o fundo e o audio.
-4. Se quiser, use o botao de teste de aviso.
-5. Ajuste o intervalo do tubarao se desejar.
-6. Preencha os agendamentos de banner aereo que desejar.
-7. Clique em `Iniciar tela de espera`.
-8. Para sair da tela cheia, pressione `Esc`.
+1. Abra o launcher com `python main.py`.
+2. Preencha ou revise os dados do evento.
+3. Escolha o espaço, cenário e áudio de fundo.
+4. Ajuste cores, opacidade, intermitência e agendamentos, se desejar.
+5. Clique em **Iniciar tela de espera** ou pressione `Enter`.
+6. Na tela cheia, pressione `Esc` para sair.
 
-## Mensagens Agendadas
+## Gerar o executável
 
-O launcher permite cadastrar ate 8 mensagens em horarios definidos.
-
-- Preencha o horario no formato `HH:MM`; ao digitar `1327`, o campo formata para `13:27`.
-- Preencha a mensagem ao lado do horario.
-- Linhas vazias, incompletas ou com horario invalido sao ignoradas.
-- Cada mensagem e exibida uma vez por dia, no minuto configurado.
-- Um aviao atravessa a faixa superior da tela puxando um banner de alto contraste.
-- A passagem dura 30 segundos; se houver mais de uma mensagem no mesmo minuto, elas entram em fila.
-
-## Fundos disponiveis
-
-- `Padrao do espaco`
-- `Fundo 1` a `Fundo 6` quando os arquivos existirem em `assets/`
-- `Ilha do Pescador`
-- `Mundo de Blocos`
-
-## Fundo Ilha do Pescador
-
-O fundo animado da ilha e desenhado por codigo e nao depende de imagem extra.
-
-Ele inclui:
-
-- variacao de ceu, mar e sol ao longo do dia
-- pescador no trapiche
-- arremesso do item pescado para a areia da ilha
-- cena do coqueiro: caminhada, balanco, coco caindo na mao e consumo
-- cena de aviao distante com binoculo
-- tubarao no mar com intervalo configuravel
-- caranguejo na areia usando o mesmo intervalo configurado do tubarao
-- gaivota que pode levar o peixe embora
-- peixinhos e golfinhos saltando aleatoriamente no mar
-
-## Fundo Mundo de Blocos
-
-O fundo Mundo de Blocos e uma cena original desenhada por codigo, com linguagem visual voxel e sem depender de imagens extras ou elementos de marcas de terceiros.
-
-Ele inclui:
-
-- sol quadrado acompanhando o horario real
-- lua e estrelas ao anoitecer
-- terreno em blocos, colinas, arvores e riacho
-- horta e animais passeando pelo terreno
-- construtor sempre ativo, caminhando para os lados e em profundidade pelo terreno
-- sequencia de cinco obras completas: cabana, oficina, torre, ponte e mirante
-- blocos, ferramenta e particulas de construcao animados durante cada etapa
-- criatura verde original em estilo voxel que, apenas de dia, pode danificar uma obra ja pronta
-- reparo prioritario: uma nova criatura so pode surgir depois que a obra danificada for totalmente restaurada
-- ponte calculada entre as duas margens do riacho, com corrimao
-- barra de ferramentas em blocos acima do rodape, com indicador de obra e progresso da vila
-- balao cruzando o ceu durante o dia e estrela cadente durante a noite
-
-## Fundo Voo no Rio
-
-O fundo Voo no Rio e uma animacao original de voo vertical continuo em pixel art, sem combate e sem condicao de derrota.
-
-Ele inclui:
-
-- aviao com piloto automatico e desvio suave de rotas
-- rio vertical com margens em degraus, ondas e elementos grandes para leitura a distancia
-- barcos, helicopteros, boias e ilhas em direcoes e velocidades variadas
-- mostrador de combustivel em estilo arcade no rodape, com estados de rota segura e reabastecimento
-- posto de abastecimento que aparece em uma rota acessivel antes que o combustivel se esgote
-- retorno automatico ao percurso depois do abastecimento, sem colisao ou interrupcao
-
-## Cores dos textos
-
-Na tela de configuracao, cada texto editavel do evento possui um seletor de cor proprio:
-
-- nome do evento
-- data
-- professores
-- mensagem principal
-
-As escolhas ficam salvas em `cores_texto` no `config.json` e sao aplicadas com sombra para preservar a leitura sobre qualquer fundo.
-
-## Intermitencia dos textos
-
-Hora, nome do evento, legenda do espaco, data, professores e mensagem principal podem piscar de forma independente.
-
-- `Desligado` mantem o elemento sempre visivel.
-- `Ocultar` remove completamente o elemento da tela.
-- Ha intervalos de 1, 2, 5, 10 e 30 segundos.
-- Ha tambem intervalos de 1, 2 e 5 minutos.
-
-## Opacidade e relogio
-
-Cada elemento da mesma lista pode usar opacidade de `100%`, `75%`, `50%` ou `25%`.
-
-O relogio pode ficar no centro em tamanho grande ou no canto inferior direito em formato compacto, sem alterar a posicao dos demais textos.
-
-## Configuracao do tubarao
-
-No launcher existe um campo para definir o intervalo do tubarao em minutos.
-
-- Se o valor for `10`, o tubarao reaparece aproximadamente nesse intervalo.
-- Se o valor for `0`, o tubarao fica desativado.
-- O caranguejo usa esse mesmo intervalo base, com pequena defasagem para nao coincidir exatamente.
-
-No `config.json`, o valor correspondente e:
-
-```json
-{
-  "intervalo_tubarao_minutos": 10
-}
-```
-
-## Estrutura do projeto
-
-```text
-projeto/
-|-- main.py
-|-- config.json
-|-- requirements.txt
-|-- build.bat
-|-- README.md
-`-- assets/
-    |-- Logo-colorido.png
-    |-- Futuro_em_Movimento_TAW.mp3
-    |-- fundo1.png
-    |-- fundo2.png
-    |-- fundo3.png
-    |-- fundo4.png
-    |-- fundo5.png
-    |-- fundo6.png
-    `-- LEIA-ME.md
-```
-
-## Build do executavel
-
-Para gerar o executavel:
+No Windows, execute:
 
 ```bat
 build.bat
 ```
 
-O script:
+O script instala as dependências de compilação, evita o problema de caminhos longos do Windows e gera a distribuição dentro de `dist\\`.
 
-- instala as dependencias de build
-- usa uma unidade virtual temporaria para evitar erro de caminho grande no Windows
-- gera a pasta do executavel dentro de `dist\`
-- copia `assets` e `config.json` junto com o executavel
+> Para distribuir, copie a pasta inteira criada em `dist\\`. No computador de destino, basta abrir o arquivo `.exe` dentro dessa pasta.
 
-Depois disso, distribua a **pasta inteira** gerada em `dist\`.
+## Configuração
 
-No computador de destino, basta executar o `.exe` gerado nessa pasta.
-
-## Configuracao
-
-O arquivo `config.json` guarda os valores padrao usados pelo launcher e pela tela.
-
-Exemplo:
+O arquivo `config.json` armazena os valores utilizados pelo launcher. Exemplo resumido:
 
 ```json
 {
@@ -242,30 +138,43 @@ Exemplo:
   "data": "20/08/2026",
   "mensagem_boas_vindas": "Texto exibido na tela principal.",
   "professores": ["Prof. Nome", "Profa. Nome"],
-  "espaco_padrao": "Robotica e Modelagem",
-  "radio_padrao": "Musica local (MP3)",
-  "volume_padrao": 60,
-  "audio_local": "assets\\arquivo.mp3",
   "fundo_padrao": "Ilha do Pescador",
   "intervalo_tubarao_minutos": 10,
   "agendamentos_banner": [
     {
       "horario": "13:30",
-      "mensagem": "A atividade comeca em breve."
+      "mensagem": "A atividade começa em breve."
     }
   ]
 }
 ```
 
-## Observacoes
+Para desativar o tubarão da Ilha do Pescador, use `0` em `intervalo_tubarao_minutos`.
 
-- O projeto foi pensado para uso em ambiente Windows.
-- Se o audio nao puder usar o backend principal, o sistema tenta alternativas compativeis.
-- O fundo animado do pescador e desenhado por codigo, entao nao depende de imagem de fundo extra.
-- O `README` pode evoluir junto com a cena animada, ja que esse fundo tem recebido refinamentos frequentes.
+## Estrutura do projeto
+
+```text
+projeto/
+├── main.py
+├── config.json
+├── requirements.txt
+├── build.bat
+├── README.md
+└── assets/
+    ├── Logo-colorido.png
+    ├── Futuro_em_Movimento_TAW.mp3
+    ├── fundo1.png … fundo6.png
+    └── LEIA-ME.md
+```
+
+## Observações
+
+- O projeto foi pensado para o ambiente Windows.
+- Caso o áudio não possa usar o backend principal, o sistema tenta alternativas compatíveis.
+- Os cenários animados são desenhados por código e não dependem de imagens extras.
 
 ## Autor
 
-**Julio Cesar Valera**
-Professor - Rede Estadual de Sao Paulo
+Julio Cesar Valera<br>
+Professor da rede estadual de São Paulo<br>
 `juliovalera@professor.educacao.sp.gov.br`
