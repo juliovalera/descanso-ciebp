@@ -5,6 +5,8 @@ chcp 65001 > nul
 set "PROJECT_DIR=%~dp0"
 set "PROJECT_DIR=%PROJECT_DIR:~0,-1%"
 set "BUILD_DRIVE="
+set "BUILD_ENV=.build-env"
+set "BUILD_EXIT=0"
 
 rem Escolhe uma letra livre para que uma execucao interrompida nao bloqueie o proximo build.
 for %%D in (Q R S T U V W X Y Z) do (
@@ -41,22 +43,30 @@ echo   Gerando executavel da Tela de Espera
 echo  =========================================================
 echo.
 
-echo [1/4] Instalando dependencias de build...
-python -m pip install --quiet --upgrade pyinstaller pillow pygame-ce pywin32
+echo [1/5] Preparando ambiente isolado de compilacao...
+if exist "%BUILD_ENV%" rmdir /s /q "%BUILD_ENV%"
+python -m venv "%BUILD_ENV%"
+if errorlevel 1 (
+    echo.
+    echo  ERRO: Falha ao criar o ambiente isolado de compilacao.
+    set "BUILD_EXIT=1"
+    goto :cleanup
+)
+
+echo [2/5] Instalando dependencias de build...
+"%BUILD_ENV%\Scripts\python.exe" -m pip install --quiet --disable-pip-version-check --upgrade pyinstaller pillow pygame-ce pywin32
 if errorlevel 1 (
     echo.
     echo  ERRO: Falha ao instalar dependencias.
-    popd
-    subst %BUILD_DRIVE% /d > nul 2>nul
-    pause
-    exit /b 1
+    set "BUILD_EXIT=1"
+    goto :cleanup
 )
 
-echo [2/4] Compilando...
+echo [3/5] Compilando...
 rmdir /s /q build 2>nul
 rmdir /s /q dist 2>nul
 del /q "CIEBP_Descanso_de_Tela.spec" 2>nul
-python -m PyInstaller ^
+"%BUILD_ENV%\Scripts\python.exe" -m PyInstaller ^
     --noconfirm ^
     --onedir ^
     --windowed ^
@@ -74,21 +84,27 @@ python -m PyInstaller ^
 if errorlevel 1 (
     echo.
     echo  ERRO: Falha na compilacao. Verifique as mensagens acima.
-    popd
-    subst %BUILD_DRIVE% /d > nul 2>nul
-    pause
-    exit /b 1
+    set "BUILD_EXIT=1"
+    goto :cleanup
 )
 
-echo [3/4] Copiando assets e configuracoes...
+echo [4/5] Copiando assets e configuracoes...
 copy /y config.json "dist\CIEBP_Descanso_de_Tela\" > nul
 if exist assets xcopy /e /i /y assets "dist\CIEBP_Descanso_de_Tela\assets" > nul
 
-echo [4/4] Limpando arquivos temporarios...
+echo [5/5] Limpando arquivos temporarios...
+
+:cleanup
 rmdir /s /q build 2>nul
 del /q "CIEBP_Descanso_de_Tela.spec" 2>nul
+rmdir /s /q "%BUILD_ENV%" 2>nul
 popd
 subst %BUILD_DRIVE% /d > nul 2>nul
+
+if "%BUILD_EXIT%"=="1" (
+    pause
+    exit /b 1
+)
 
 echo.
 echo  =========================================================
