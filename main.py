@@ -1039,6 +1039,7 @@ class DescansoTela(tk.Tk):
         self._voo_cena = {}
         self._teclas_voo_pressionadas = set()
         self._intermitencia_textos_after = None
+        self._cores_texto_intermitentes = {}
 
         self._configurar_janela()
         self._construir_canvas()
@@ -1224,6 +1225,7 @@ class DescansoTela(tk.Tk):
         self._parar_animacao_blocos()
         self._parar_animacao_voo()
         self.canvas.delete("all")
+        self._cores_texto_intermitentes = {}
         self._desenhar_fundo(larg, alt)
         self._desenhar_painel_central(larg, alt)  # inclui relógio e logo
         self._desenhar_rodape(larg, alt)
@@ -4730,6 +4732,38 @@ class DescansoTela(tk.Tk):
         }
         return periodos.get(str(valor), 0)
 
+    def _cor_fundo_do_texto(self, item):
+        """Estima a cor atrás do texto para criar um fade sem tramas brancas."""
+        try:
+            coords = self.canvas.coords(item)
+            y = coords[1] if len(coords) > 1 else 0
+        except tk.TclError:
+            y = 0
+
+        if self.fundo_path == "__pescador__" and self._pescador_cena:
+            cena = self._pescador_cena
+            estado = cena.get("estado_solar", {})
+            if y >= cena.get("horizonte", 0):
+                return estado.get("mar", "#2474B5")
+            proporcao = max(0.0, min(1.0, y / max(1, cena.get("horizonte", 1))))
+            return self._mix_cor(estado.get("ceu_topo", "#64A3FF"), estado.get("ceu_base", "#BFE8FF"), proporcao)
+
+        if self.fundo_path == "__blocos__" and self._blocos_cena:
+            cena = self._blocos_cena
+            if y >= cena.get("horizonte", 0):
+                return "#87623C"
+            try:
+                faixas_ceu = cena.get("ceu", [])
+                if faixas_ceu:
+                    return self.canvas.itemcget(faixas_ceu[min(3, len(faixas_ceu) - 1)], "fill")
+            except tk.TclError:
+                pass
+            return "#86BDEC"
+
+        if self.fundo_path == "__voo__":
+            return "#355E9F"
+        return "#10243A"
+
     def _atualizar_intermitencias_texto(self, agora_ts):
         """Aplica intermitência com entrada e saída suaves aos grupos de texto."""
         configuracoes = self.config_dados.get("intermitencia_textos", {})
@@ -4753,7 +4787,7 @@ class DescansoTela(tk.Tk):
                 # A primeira metade do ciclo fica visível: entra suavemente,
                 # permanece legível e sai antes da metade oculta.
                 fase = agora_ts % (periodo * 2)
-                transicao = max(0.18, min(0.70, periodo * 0.18))
+                transicao = max(0.35, min(0.85, periodo * 0.25))
                 if fase >= periodo:
                     intensidade = 0.0
                 elif fase < transicao:
@@ -4767,16 +4801,20 @@ class DescansoTela(tk.Tk):
                 opacidades.get(chave, "100%"), 1.0
             )
             intensidade *= base
-            if intensidade >= 0.88:
-                trama = ""
-            elif intensidade >= 0.62:
-                trama = "gray75"
-            elif intensidade >= 0.38:
-                trama = "gray50"
-            else:
-                trama = "gray25"
             try:
-                self.canvas.itemconfig(tag, state="normal" if intensidade > 0.04 else "hidden", stipple=trama)
+                for item in self.canvas.find_withtag(tag):
+                    cor_original = self._cores_texto_intermitentes.get(item)
+                    if cor_original is None:
+                        cor_original = self.canvas.itemcget(item, "fill")
+                        self._cores_texto_intermitentes[item] = cor_original
+                    cor_fundo = self._cor_fundo_do_texto(item)
+                    cor_atual = self._mix_cor(cor_fundo, cor_original, intensidade)
+                    self.canvas.itemconfig(
+                        item,
+                        state="normal" if intensidade > 0.015 else "hidden",
+                        fill=cor_atual,
+                        stipple="",
+                    )
             except tk.TclError:
                 pass
 
@@ -4788,7 +4826,7 @@ class DescansoTela(tk.Tk):
         except tk.TclError:
             return
         self._atualizar_intermitencias_texto(time.time())
-        self._intermitencia_textos_after = self.after(100, self._loop_intermitencia_textos)
+        self._intermitencia_textos_after = self.after(50, self._loop_intermitencia_textos)
 
     def _atualizar_opacidades_texto(self):
         """Aplica intensidade visual por meio de tramas do Canvas."""
