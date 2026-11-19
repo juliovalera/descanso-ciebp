@@ -3668,22 +3668,27 @@ class DescansoTela(tk.Tk):
         x = cena["aviao_x"]
         aviao_y = cena["aviao_y"]
 
-        # Protecao final contra sobreposicao: o piloto se afasta antes de qualquer
-        # objeto fixo cruzar a fuselagem. Botes de resgate ficam de fora para
-        # permitir a aproximacao e o içamento das pessoas.
-        for obstaculo in cena["obstaculos"]:
-            if obstaculo["tipo"] == "resgate":
-                continue
-            if abs(obstaculo["x"] - x) < 76 and abs(obstaculo["y"] - aviao_y) < 62:
-                sentido_x = -1 if obstaculo["x"] >= x else 1
-                candidato_x = x + sentido_x * 94
-                if rio_esq + 38 <= candidato_x <= rio_dir - 38:
-                    x = candidato_x
-                else:
-                    sentido_y = -1 if obstaculo["y"] >= aviao_y else 1
-                    aviao_y = max(80, min(cena["hud_top"] - 52, aviao_y + sentido_y * 86))
-                cena["aviao_x"] = x
-                cena["aviao_y"] = aviao_y
+        # Protecao final contra sobreposicao, aplicada gradualmente para que o
+        # desvio continue fluido. Botes de resgate ficam de fora, pois precisam
+        # permitir aproximacao para o içamento das pessoas.
+        riscos_imediatos = [
+            item for item in cena["obstaculos"]
+            if item["tipo"] != "resgate"
+            and abs(item["x"] - x) < 104
+            and abs(item["y"] - aviao_y) < 92
+        ]
+        if riscos_imediatos:
+            obstaculo = min(riscos_imediatos, key=lambda item: abs(item["x"] - x) + abs(item["y"] - aviao_y))
+            sentido_x = -1 if obstaculo["x"] >= x else 1
+            candidato_x = x + sentido_x * 108
+            if rio_esq + 38 <= candidato_x <= rio_dir - 38:
+                x = self._aproximar_valor(x, candidato_x, 16)
+            else:
+                sentido_y = -1 if obstaculo["y"] >= aviao_y else 1
+                candidato_y = max(80, min(cena["hud_top"] - 52, aviao_y + sentido_y * 96))
+                aviao_y = self._aproximar_valor(aviao_y, candidato_y, 14)
+            cena["aviao_x"] = x
+            cena["aviao_y"] = aviao_y
 
         aviao = cena["aviao"]
         inclinacao = max(-15, min(15, (alvo_x - x) * 0.13))
@@ -4028,8 +4033,9 @@ class DescansoTela(tk.Tk):
         tam_prof = int(20 * escala_texto)
         tam_msg = int(19 * escala_texto)
 
-        # No voo, os separadores atravessariam o rio e competiriam com a rota.
-        if self.fundo_path != "__voo__":
+        # Cenários animados usam a paisagem livre: separadores verdes soariam
+        # como artefatos quando os textos estiverem ocultos.
+        if self.fundo_path not in {"__pescador__", "__blocos__", "__voo__"}:
             self._linha_decorativa(cx, y, int(painel_larg * 0.5), cor_destaque)
         y += int(20 * escala_texto)
 
@@ -4092,7 +4098,7 @@ class DescansoTela(tk.Tk):
 
             y += int(12 * escala_texto)
 
-        if self.fundo_path != "__voo__":
+        if self.fundo_path not in {"__pescador__", "__blocos__", "__voo__"}:
             self._linha_decorativa(cx, y, int(painel_larg * 0.4), cor_destaque, espessura=1)
         y += int(18 * escala_texto)
         if self.fundo_path == "__pescador__":
