@@ -3358,7 +3358,7 @@ class DescansoTela(tk.Tk):
             alvo_y = posto["y"] + 46
 
         obstaculo_proximo = None
-        distancia_proxima = float("inf")
+        risco_proximo = float("inf")
         bote_resgate = None
         distancia_resgate = float("inf")
 
@@ -3387,11 +3387,16 @@ class DescansoTela(tk.Tk):
                 obstaculo.update(tipo=novo_tipo, y=random.uniform(-230, -50), vel=random.uniform(2.3, 4.1), fase=random.uniform(0, math.tau), resgatado=False)
             margem_esq, margem_dir = margens_rio(obstaculo["y"], deslocamento_margem)
             obstaculo["x"] = (margem_esq + margem_dir) / 2 + math.sin(agora_ts * (0.5 + obstaculo["vel"] * 0.08) + obstaculo["fase"]) * (margem_dir - margem_esq) * 0.27
-            distancia = abs(obstaculo["y"] - aviao_y)
-            if obstaculo["tipo"] == "resgate" and not obstaculo["resgatado"] and distancia < distancia_resgate:
-                bote_resgate, distancia_resgate = obstaculo, distancia
-            elif distancia < distancia_proxima:
-                obstaculo_proximo, distancia_proxima = obstaculo, distancia
+            distancia_vertical = abs(obstaculo["y"] - aviao_y)
+            distancia_horizontal = abs(obstaculo["x"] - cena["aviao_x"])
+            if obstaculo["tipo"] == "resgate" and not obstaculo["resgatado"] and distancia_vertical < distancia_resgate:
+                bote_resgate, distancia_resgate = obstaculo, distancia_vertical
+            elif (obstaculo["indice"] != cena.get("resgate_ativo")
+                    and distancia_vertical < 255 and distancia_horizontal < 155):
+                # Ameaça real: só conta quando o objeto está também alinhado à rota.
+                risco = distancia_vertical + distancia_horizontal * 0.42
+                if risco < risco_proximo:
+                    obstaculo_proximo, risco_proximo = obstaculo, risco
             self._desenhar_obstaculo_voo_pixel(obstaculo)
 
         buscando_resgate = (cena["resgate_ativo"] is None and not posto["ativo"]
@@ -3410,7 +3415,7 @@ class DescansoTela(tk.Tk):
                 cena["resgate_inicio"] = agora_ts
                 cena["resgate_alvo"] = None
 
-        ameaca_antecipada = not buscando_resgate and not posto["ativo"] and obstaculo_proximo and distancia_proxima < 235
+        ameaca_antecipada = not buscando_resgate and not posto["ativo"] and obstaculo_proximo is not None
         if ameaca_antecipada and (not cena["manobra_ativa"] or cena["manobra_obstaculo"] != obstaculo_proximo["indice"]):
             cena["manobra_ativa"] = True
             cena["manobra_obstaculo"] = obstaculo_proximo["indice"]
@@ -3420,9 +3425,9 @@ class DescansoTela(tk.Tk):
             else:
                 cena["manobra_x"] = rio_esq + (rio_dir - rio_esq) * 0.87
             if obstaculo_proximo["y"] < aviao_y:
-                cena["manobra_y"] = min(cena["hud_top"] - 32, altura_cruzeiro + 92)
+                cena["manobra_y"] = min(cena["hud_top"] - 32, altura_cruzeiro + 118)
             else:
-                cena["manobra_y"] = max(int(cena["hud_top"] * 0.48), altura_cruzeiro - 92)
+                cena["manobra_y"] = max(int(cena["hud_top"] * 0.42), altura_cruzeiro - 118)
 
         if cena["manobra_ativa"]:
             alvo_x, alvo_y = cena["manobra_x"], cena["manobra_y"]
@@ -3442,8 +3447,8 @@ class DescansoTela(tk.Tk):
             self._desenhar_objeto_margem_voo(objeto_margem)
 
         alvo_x = max(rio_esq + 32, min(rio_dir - 32, alvo_x))
-        cena["aviao_x"] = self._aproximar_valor(cena["aviao_x"], alvo_x, 11.5 if desvio_urgente else 5.5)
-        cena["aviao_y"] = self._aproximar_valor(cena["aviao_y"], alvo_y, 8.0 if desvio_urgente else 3.0)
+        cena["aviao_x"] = self._aproximar_valor(cena["aviao_x"], alvo_x, 15.0 if desvio_urgente else 5.5)
+        cena["aviao_y"] = self._aproximar_valor(cena["aviao_y"], alvo_y, 11.0 if desvio_urgente else 3.0)
         x = cena["aviao_x"]
         aviao_y = cena["aviao_y"]
         aviao = cena["aviao"]
