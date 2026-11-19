@@ -3305,7 +3305,7 @@ class DescansoTela(tk.Tk):
             "aviao": aviao, "obstaculos": obstaculos, "margem_objetos": margem_objetos, "posto": posto, "tanque": tanque,
             "aviao_x": larg * 0.5, "aviao_y": hud_top - 145, "aviao_y_base": hud_top - 145, "combustivel": 100.0,
             "reabastecendo": False, "manobra_ativa": False, "manobra_x": larg * 0.5, "manobra_y": hud_top - 145, "manobra_obstaculo": None, "manobra_inicio": 0.0,
-            "pontuacao": 0, "pontuacao_id": pontuacao_id, "pontuacao_box": pontuacao_box, "cabo_resgate": cabo_resgate, "cabo_resgate_sombra": cabo_resgate_sombra, "resgate_ativo": None, "resgate_inicio": 0.0, "resgate_alvo": None, "proximo_resgate_ts": time.time(),
+            "pontuacao": 0, "pontuacao_id": pontuacao_id, "pontuacao_box": pontuacao_box, "cabo_resgate": cabo_resgate, "cabo_resgate_sombra": cabo_resgate_sombra, "resgate_ativo": None, "resgate_inicio": 0.0, "resgate_alvo": None, "proximo_resgate_ts": time.time(), "resgate_pendente_inicio": time.time(),
             "ultimo_tempo": time.time(),
         }
         self._atualizar_cena_voo_pixel(time.time())
@@ -3377,14 +3377,19 @@ class DescansoTela(tk.Tk):
                 resgatado=False,
             )
             cena["proximo_resgate_ts"] = float("inf")
+            cena["resgate_pendente_inicio"] = agora_ts
 
         for obstaculo in cena["obstaculos"]:
             resgate_em_curso = cena.get("resgate_ativo") == obstaculo["indice"]
             velocidade_vertical = 1.4 if resgate_em_curso else 11
             obstaculo["y"] += obstaculo["vel"] * dt * velocidade_vertical
             if not resgate_em_curso and obstaculo["y"] > cena["hud_top"] + 70:
+                resgate_perdido = obstaculo["tipo"] == "resgate" and not obstaculo["resgatado"]
                 novo_tipo = random.choice(("barco", "helicoptero", "boia", "ilha"))
                 obstaculo.update(tipo=novo_tipo, y=random.uniform(-230, -50), vel=random.uniform(2.3, 4.1), fase=random.uniform(0, math.tau), resgatado=False)
+                if resgate_perdido:
+                    # Um bote que saiu da tela sem ser alcançado nunca interrompe a sequência.
+                    cena["proximo_resgate_ts"] = agora_ts + 0.8
             margem_esq, margem_dir = margens_rio(obstaculo["y"], deslocamento_margem)
             obstaculo["x"] = (margem_esq + margem_dir) / 2 + math.sin(agora_ts * (0.5 + obstaculo["vel"] * 0.08) + obstaculo["fase"]) * (margem_dir - margem_esq) * 0.27
             distancia_vertical = abs(obstaculo["y"] - aviao_y)
@@ -3407,8 +3412,14 @@ class DescansoTela(tk.Tk):
             alvo_x = bote_resgate["x"]
             # A aeronave paira acima do bote, deixando o içamento compreensível.
             alvo_y = max(95, min(cena["hud_top"] - 150, bote_resgate["y"] - 118))
-            if (abs(bote_resgate["x"] - cena["aviao_x"]) < 55
-                    and 70 < bote_resgate["y"] - aviao_y < 165):
+            alinhado_para_resgate = (abs(bote_resgate["x"] - cena["aviao_x"]) < 55
+                                     and 70 < bote_resgate["y"] - aviao_y < 165)
+            resgate_demora_demais = agora_ts - cena.get("resgate_pendente_inicio", agora_ts) > 14
+            if alinhado_para_resgate or resgate_demora_demais:
+                if resgate_demora_demais:
+                    # Garantia final: reposiciona o bote na rota para que a demonstração nunca pare.
+                    bote_resgate["x"] = cena["aviao_x"]
+                    bote_resgate["y"] = aviao_y + 120
                 bote_resgate["resgatado"] = True
                 cena["pontuacao"] += 100
                 cena["resgate_ativo"] = bote_resgate["indice"]
