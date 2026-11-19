@@ -98,6 +98,7 @@ O launcher permite cadastrar ate 8 mensagens em horarios definidos.
 - `Padrao do espaco`
 - `Fundo 1` a `Fundo 6` quando os arquivos existirem em `assets/`
 - `Ilha do Pescador`
+- `Mundo de Blocos`
 
 ## Fundo Ilha do Pescador
 
@@ -114,6 +115,64 @@ Ele inclui:
 - caranguejo na areia usando o mesmo intervalo configurado do tubarao
 - gaivota que pode levar o peixe embora
 - peixinhos e golfinhos saltando aleatoriamente no mar
+
+## Fundo Mundo de Blocos
+
+O fundo Mundo de Blocos e uma cena original desenhada por codigo, com linguagem visual voxel e sem depender de imagens extras ou elementos de marcas de terceiros.
+
+Ele inclui:
+
+- sol quadrado acompanhando o horario real
+- lua e estrelas ao anoitecer
+- terreno em blocos, colinas, arvores e riacho
+- horta e animais passeando pelo terreno
+- construtor sempre ativo, caminhando para os lados e em profundidade pelo terreno
+- sequencia de cinco obras completas: cabana, oficina, torre, ponte e mirante
+- blocos, ferramenta e particulas de construcao animados durante cada etapa
+- criatura verde original em estilo voxel que, apenas de dia, pode danificar uma obra ja pronta
+- reparo prioritario: uma nova criatura so pode surgir depois que a obra danificada for totalmente restaurada
+- ponte calculada entre as duas margens do riacho, com corrimao
+- barra de ferramentas em blocos acima do rodape, com indicador de obra e progresso da vila
+- balao cruzando o ceu durante o dia e estrela cadente durante a noite
+
+## Fundo Voo no Rio
+
+O fundo Voo no Rio e uma animacao original de voo vertical continuo em pixel art, sem combate e sem condicao de derrota.
+
+Ele inclui:
+
+- aviao com piloto automatico e desvio suave de rotas
+- rio vertical com margens em degraus, ondas e elementos grandes para leitura a distancia
+- barcos, helicopteros, boias e ilhas em direcoes e velocidades variadas
+- mostrador de combustivel em estilo arcade no rodape, com estados de rota segura e reabastecimento
+- posto de abastecimento que aparece em uma rota acessivel antes que o combustivel se esgote
+- retorno automatico ao percurso depois do abastecimento, sem colisao ou interrupcao
+
+## Cores dos textos
+
+Na tela de configuracao, cada texto editavel do evento possui um seletor de cor proprio:
+
+- nome do evento
+- data
+- professores
+- mensagem principal
+
+As escolhas ficam salvas em `cores_texto` no `config.json` e sao aplicadas com sombra para preservar a leitura sobre qualquer fundo.
+
+## Intermitencia dos textos
+
+Hora, nome do evento, legenda do espaco, data, professores e mensagem principal podem piscar de forma independente.
+
+- `Desligado` mantem o elemento sempre visivel.
+- `Ocultar` remove completamente o elemento da tela.
+- Ha intervalos de 1, 2, 5, 10 e 30 segundos.
+- Ha tambem intervalos de 1, 2 e 5 minutos.
+
+## Opacidade e relogio
+
+Cada elemento da mesma lista pode usar opacidade de `100%`, `75%`, `50%` ou `25%`.
+
+O relogio pode ficar no centro em tamanho grande ou no canto inferior direito em formato compacto, sem alterar a posicao dos demais textos.
 
 ## Configuracao do tubarao
 

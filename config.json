@@ -1,7 +1,30 @@
 {
   "evento": "Planejamento e estudo",
-  "data": "21/08/2026",
+  "data": "19/11/2026",
   "mensagem_boas_vindas": "Bem-vindo(a) ao CIEBP! Prepare-se para uma experiência incrível de inovação e aprendizagem.",
+  "cores_texto": {
+    "evento": "#FB1874",
+    "data": "#8EFB17",
+    "professores": "#FB1874",
+    "mensagem": "#E6EEF5"
+  },
+  "intermitencia_textos": {
+    "hora": "Ocultar",
+    "evento": "Ocultar",
+    "legenda": "Ocultar",
+    "data": "Ocultar",
+    "professores": "Ocultar",
+    "mensagem": "Ocultar"
+  },
+  "opacidade_textos": {
+    "hora": "100%",
+    "evento": "100%",
+    "legenda": "100%",
+    "data": "100%",
+    "professores": "100%",
+    "mensagem": "100%"
+  },
+  "posicao_relogio": "Central (grande)",
   "professores": [
     "Júlio e Alessandro"
   ],
@@ -40,7 +63,7 @@
     "Sem rádio": ""
   },
   "logo": "assets/Logo-colorido.png",
-  "fundo_padrao": "Ilha do Pescador",
+  "fundo_padrao": "Voo no Rio",
   "intervalo_tubarao_minutos": 5,
   "agendamentos_banner": []
 }

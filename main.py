@@ -7,7 +7,7 @@
 # =============================================================================
 
 import tkinter as tk
-from tkinter import ttk, font as tkfont
+from tkinter import ttk, font as tkfont, colorchooser
 import json
 import os
 import sys
@@ -168,6 +168,29 @@ class JanelaConfig(tk.Tk):
         self.var_data = tk.StringVar(value=self.data_atual)
         self.var_professores = tk.StringVar(value=", ".join(config.get("professores", [])))
         self.var_mensagem = tk.StringVar(value=config.get("mensagem_boas_vindas", ""))
+        cores_texto = config.get("cores_texto", {})
+        self.var_cores_texto = {
+            "evento": tk.StringVar(value=cores_texto.get("evento", "#FB1874")),
+            "data": tk.StringVar(value=cores_texto.get("data", "#FB1874")),
+            "professores": tk.StringVar(value=cores_texto.get("professores", "#FB1874")),
+            "mensagem": tk.StringVar(value=cores_texto.get("mensagem", "#E6EEF5")),
+        }
+        self._botoes_cor_texto = {}
+        intermitencias = config.get("intermitencia_textos", {})
+        self.var_intermitencia_textos = {
+            "hora": tk.StringVar(value=intermitencias.get("hora", "Desligado")),
+            "evento": tk.StringVar(value=intermitencias.get("evento", "Desligado")),
+            "legenda": tk.StringVar(value=intermitencias.get("legenda", "Desligado")),
+            "data": tk.StringVar(value=intermitencias.get("data", "Desligado")),
+            "professores": tk.StringVar(value=intermitencias.get("professores", "Desligado")),
+            "mensagem": tk.StringVar(value=intermitencias.get("mensagem", "Desligado")),
+        }
+        opacidades = config.get("opacidade_textos", {})
+        self.var_opacidade_textos = {
+            chave: tk.StringVar(value=opacidades.get(chave, "100%"))
+            for chave in ("hora", "evento", "legenda", "data", "professores", "mensagem")
+        }
+        self.var_posicao_relogio = tk.StringVar(value=config.get("posicao_relogio", "Central (grande)"))
         self.var_audio_local = tk.StringVar(value=config.get("audio_local", ""))
         self.var_fundo = tk.StringVar(value=config.get("fundo_padrao", "Padrão do espaço"))
         self.var_alerta_teste = tk.StringVar(value="Aviso de almoço")
@@ -323,6 +346,30 @@ class JanelaConfig(tk.Tk):
         _campo("Professores", self.var_professores, "Separe os nomes por vírgula.")
         _campo("Mensagem da tela", self.var_mensagem, "Esse texto aparece na tela principal.")
 
+        frame_cores = tk.Frame(F, bg="#10243A")
+        frame_cores.pack(fill="x", padx=30, pady=(2, 8))
+        tk.Label(frame_cores, text="Cores dos textos", font=("Segoe UI", 10, "bold"), fg="#E3EDF5", bg="#10243A", anchor="w").pack(fill="x", padx=10, pady=(8, 1))
+        tk.Label(frame_cores, text="Escolha uma cor para cada texto do evento.", font=("Segoe UI", 8), fg="#9CB2C6", bg="#10243A", anchor="w").pack(fill="x", padx=10, pady=(0, 5))
+        for chave, rotulo in (("evento", "Nome do evento"), ("data", "Data"), ("professores", "Professores"), ("mensagem", "Mensagem")):
+            linha_cor = tk.Frame(frame_cores, bg="#10243A")
+            linha_cor.pack(fill="x", padx=10, pady=2)
+            tk.Label(linha_cor, text=rotulo, font=("Segoe UI", 9, "bold"), fg="#B8C7D6", bg="#10243A", width=19, anchor="w").pack(side="left")
+            botao_cor = tk.Button(linha_cor, textvariable=self.var_cores_texto[chave], font=("Consolas", 9, "bold"), fg="#0D1B2A", bg=self.var_cores_texto[chave].get(), activeforeground="#0D1B2A", activebackground=self.var_cores_texto[chave].get(), relief="flat", bd=0, cursor="hand2", command=lambda item=chave: self._selecionar_cor_texto(item))
+            botao_cor.pack(side="right", ipadx=8, ipady=3)
+            self._botoes_cor_texto[chave] = botao_cor
+
+        frame_intermitencia = tk.Frame(F, bg="#10243A")
+        frame_intermitencia.pack(fill="x", padx=30, pady=(0, 8))
+        tk.Label(frame_intermitencia, text="Intermitencia dos textos", font=("Segoe UI", 10, "bold"), fg="#E3EDF5", bg="#10243A", anchor="w").pack(fill="x", padx=10, pady=(8, 1))
+        tk.Label(frame_intermitencia, text="Desligado mantem visivel; Ocultar remove o elemento da tela; as demais opcoes definem o intervalo de piscar.", font=("Segoe UI", 8), fg="#9CB2C6", bg="#10243A", anchor="w", wraplength=500, justify="left").pack(fill="x", padx=10, pady=(0, 5))
+        opcoes_intermitencia = ("Desligado", "Ocultar", "1 segundo", "2 segundos", "5 segundos", "10 segundos", "30 segundos", "1 minuto", "2 minutos", "5 minutos")
+        for chave, rotulo in (("hora", "Hora"), ("evento", "Nome do evento"), ("legenda", "Legenda do espaco"), ("data", "Data"), ("professores", "Professores"), ("mensagem", "Mensagem")):
+            linha_intermitencia = tk.Frame(frame_intermitencia, bg="#10243A")
+            linha_intermitencia.pack(fill="x", padx=10, pady=2)
+            tk.Label(linha_intermitencia, text=rotulo, font=("Segoe UI", 9, "bold"), fg="#B8C7D6", bg="#10243A", width=19, anchor="w").pack(side="left")
+            combo_intermitencia = ttk.Combobox(linha_intermitencia, textvariable=self.var_intermitencia_textos[chave], values=opcoes_intermitencia, state="readonly", width=15, font=("Segoe UI", 9), style="Institucional.TCombobox")
+            combo_intermitencia.pack(side="right", ipady=2)
+
         # Separador
         tk.Frame(F, bg="#1E3A5F", height=1).pack(fill="x", padx=30, pady=(2, 6))
 
@@ -395,7 +442,7 @@ class JanelaConfig(tk.Tk):
             f"Fundo {i}" for i in range(1, 7)
             if (base_dir / "assets" / f"fundo{i}.png").exists()
         ]
-        opcoes_fundo.append("Ilha do Pescador")
+        opcoes_fundo.extend(("Ilha do Pescador", "Mundo de Blocos", "Voo no Rio"))
         self.combo_fundo = ttk.Combobox(
             frame_fundo,
             textvariable=self.var_fundo,
@@ -677,6 +724,8 @@ class JanelaConfig(tk.Tk):
 
         self._btn_iniciar.bind("<Enter>", lambda e: self._btn_iniciar.configure(bg="#0097A7"))
         self._btn_iniciar.bind("<Leave>", lambda e: self._btn_iniciar.configure(bg="#00BCD4"))
+        self.bind("<Return>", self._iniciar_por_tecla)
+        self.bind("<KP_Enter>", self._iniciar_por_tecla)
 
     def _formatar_horario_agendamento(self, event=None):
         """Aplica a mascara HH:MM enquanto o horario e digitado."""
@@ -690,6 +739,16 @@ class JanelaConfig(tk.Tk):
             campo.delete(0, "end")
             campo.insert(0, valor_formatado)
         campo.icursor("end")
+
+    def _selecionar_cor_texto(self, chave):
+        """Abre o seletor de cores para um texto do evento."""
+        cor_inicial = self.var_cores_texto[chave].get()
+        _, cor_escolhida = colorchooser.askcolor(color=cor_inicial, parent=self, title="Escolha a cor do texto")
+        if not cor_escolhida:
+            return
+        self.var_cores_texto[chave].set(cor_escolhida.upper())
+        botao = self._botoes_cor_texto[chave]
+        botao.configure(bg=cor_escolhida, activebackground=cor_escolhida)
 
     def _atualizar_campo_mp3(self, event=None):
         """Mostra/oculta o campo de arquivo MP3 conforme a seleção da rádio."""
@@ -711,6 +770,11 @@ class JanelaConfig(tk.Tk):
         )
         if caminho:
             self.var_audio_local.set(caminho)
+
+    def _iniciar_por_tecla(self, event=None):
+        """Inicia a tela de espera ao pressionar Enter em qualquer ponto do formulario."""
+        self._iniciar()
+        return "break"
 
     def _iniciar(self):
         """Aplica as configurações do formulário e abre a tela cheia."""
@@ -740,6 +804,16 @@ class JanelaConfig(tk.Tk):
         profs_raw = self.var_professores.get()
         self.config_dados["professores"] = [p.strip() for p in profs_raw.split(",") if p.strip()]
         self.config_dados["mensagem_boas_vindas"] = self.var_mensagem.get().strip()
+        self.config_dados["cores_texto"] = {
+            chave: variavel.get().strip() for chave, variavel in self.var_cores_texto.items()
+        }
+        self.config_dados["intermitencia_textos"] = {
+            chave: variavel.get().strip() for chave, variavel in self.var_intermitencia_textos.items()
+        }
+        self.config_dados["opacidade_textos"] = {
+            chave: variavel.get().strip() for chave, variavel in self.var_opacidade_textos.items()
+        }
+        self.config_dados["posicao_relogio"] = self.var_posicao_relogio.get().strip()
         try:
             intervalo_tubarao = max(0, int(float(self.var_intervalo_tubarao.get().strip() or "10")))
         except ValueError:
@@ -765,6 +839,10 @@ class JanelaConfig(tk.Tk):
             fundo_path = ""
         elif fundo == "Ilha do Pescador":
             fundo_path = "__pescador__"
+        elif fundo == "Mundo de Blocos":
+            fundo_path = "__blocos__"
+        elif fundo == "Voo no Rio":
+            fundo_path = "__voo__"
         else:
             num = fundo.split()[-1]  # "Fundo 3" -> "3"
             fundo_path = f"assets/fundo{num}.png"
@@ -894,6 +972,14 @@ class DescansoTela(tk.Tk):
         self._animacao_pescador_ativa = False
         self._animacao_pescador_after = None
         self._pescador_cena = {}
+        self._tags_fundo_blocos = "fundo_blocos"
+        self._animacao_blocos_ativa = False
+        self._animacao_blocos_after = None
+        self._blocos_cena = {}
+        self._tags_fundo_voo = "fundo_voo"
+        self._animacao_voo_ativa = False
+        self._animacao_voo_after = None
+        self._voo_cena = {}
 
         self._configurar_janela()
         self._construir_canvas()
@@ -959,6 +1045,8 @@ class DescansoTela(tk.Tk):
             return
 
         self._parar_animacao_pescador()
+        self._parar_animacao_blocos()
+        self._parar_animacao_voo()
         self.canvas.delete("all")
         self._desenhar_fundo(larg, alt)
         self._desenhar_painel_central(larg, alt)  # inclui relógio e logo
@@ -973,6 +1061,14 @@ class DescansoTela(tk.Tk):
 
         if self.fundo_path == "__pescador__":
             self._desenhar_fundo_pescador(larg, alt, cor_destaque)
+            self.canvas.create_rectangle(0, 0, larg, 5, fill=cor_destaque, outline="")
+            return
+        if self.fundo_path == "__blocos__":
+            self._desenhar_fundo_blocos(larg, alt, cor_destaque)
+            self.canvas.create_rectangle(0, 0, larg, 5, fill=cor_destaque, outline="")
+            return
+        if self.fundo_path == "__voo__":
+            self._desenhar_fundo_voo(larg, alt, cor_destaque)
             self.canvas.create_rectangle(0, 0, larg, 5, fill=cor_destaque, outline="")
             return
 
@@ -2447,10 +2543,1040 @@ class DescansoTela(tk.Tk):
         self._animacao_pescador_after = None
         self._pescador_cena = {}
 
+    def _desenhar_fundo_blocos(self, larg, alt, cor_destaque):
+        """Cria uma paisagem original em blocos, com construtor e vila em evolucao."""
+        tags = self._tags_fundo_blocos
+        horizonte = int(alt * 0.58)
+        estado_solar = self._obter_estado_solar(datetime.now(), larg, alt)
+        ceu = []
+        for indice in range(7):
+            y1 = int(horizonte * indice / 7)
+            y2 = int(horizonte * (indice + 1) / 7)
+            ceu.append(self.canvas.create_rectangle(0, y1, larg, y2, fill=estado_solar["ceu_topo"], outline="", tags=tags))
+
+        estrelas = []
+        for indice in range(24):
+            x = int(larg * ((indice * 37 % 91 + 4) / 100))
+            y = int(horizonte * ((indice * 19 % 58 + 5) / 100))
+            estrelas.append(self.canvas.create_rectangle(x, y, x + 3, y + 3, fill="#EAF6FF", outline="", state="hidden", tags=tags))
+
+        sol_aura = self.canvas.create_rectangle(0, 0, 0, 0, fill="#FFF0A6", outline="", stipple="gray50", tags=tags)
+        sol = self.canvas.create_rectangle(0, 0, 0, 0, fill=estado_solar["sol_cor"], outline="#FFF8C6", width=2, tags=tags)
+        lua = self.canvas.create_rectangle(0, 0, 0, 0, fill="#D8E8F4", outline="#FFFFFF", width=1, state="hidden", tags=tags)
+
+        morros = []
+        bloco = max(24, int(larg / 60))
+        for coluna in range(-1, int(larg / bloco) + 2):
+            altura_morro = int((math.sin(coluna * 0.38) + math.sin(coluna * 0.13 + 1.5) + 2.2) * bloco * 1.7)
+            x1 = coluna * bloco
+            x2 = x1 + bloco + 1
+            morros.append(self.canvas.create_rectangle(x1, horizonte - altura_morro, x2, horizonte, fill="#356B49", outline="#244D37", width=1, tags=tags))
+
+        solo = self.canvas.create_rectangle(0, horizonte, larg, alt, fill="#7C5A38", outline="", tags=tags)
+        grama = self.canvas.create_rectangle(0, horizonte - 10, larg, horizonte + 12, fill="#56A64B", outline="#2C6C36", width=2, tags=tags)
+        detalhes_solo = []
+        for indice in range(38):
+            x = (indice * 79) % larg
+            y = horizonte + 18 + (indice * 47) % max(40, int(alt * 0.35))
+            detalhes_solo.append(self.canvas.create_rectangle(x, y, x + 16, y + 9, fill="#936B42", outline="", tags=tags))
+
+        rio = self.canvas.create_polygon(
+            int(larg * 0.89), horizonte,
+            int(larg * 0.95), horizonte,
+            int(larg * 0.96), alt,
+            int(larg * 0.80), alt,
+            fill="#2C91BE", outline="#8AD8F3", width=2, tags=tags,
+        )
+        ondas_rio = [self.canvas.create_line(0, 0, 0, 0, fill="#B8EEFF", width=2, tags=tags) for _ in range(5)]
+
+        arvores = []
+        for frac_x, escala in ((0.10, 1.0), (0.24, 0.78), (0.88, 1.08)):
+            x = int(larg * frac_x)
+            y = int(horizonte * 1.06)
+            tronco = self.canvas.create_rectangle(x - 8 * escala, y - 58 * escala, x + 8 * escala, y, fill="#704526", outline="#3F2817", width=2, tags=tags)
+            copa = []
+            for dx, dy in ((0, -82), (-24, -56), (25, -58), (0, -42)):
+                r = 26 * escala
+                copa.append(self.canvas.create_rectangle(x + dx * escala - r, y + dy * escala - r, x + dx * escala + r, y + dy * escala + r, fill="#2F8744", outline="#1E592F", width=2, tags=tags))
+            arvores.append({"tronco": tronco, "copa": copa})
+
+        horta = []
+        for indice in range(7):
+            x = int(larg * 0.12) + indice * max(18, int(larg * 0.018))
+            y = int(alt * 0.78) + (indice % 2) * 13
+            terra = self.canvas.create_rectangle(x - 8, y, x + 10, y + 12, fill="#5D3E26", outline="#AD7A45", width=1, tags=tags)
+            planta = self.canvas.create_rectangle(x - 3, y - 18, x + 4, y, fill="#75C94D", outline="#D4F58A", width=1, tags=tags)
+            horta.append((terra, planta))
+
+        casa_blocos = []
+        casa_x = int(larg * 0.63)
+        casa_y = int(alt * 0.75)
+        posicoes_casa = [
+            (indice * 28, 0) for indice in range(6)
+        ] + [
+            (0, -28), (28, -28), (56, -28), (84, -28), (112, -28), (140, -28),
+            (0, -56), (28, -56), (112, -56), (140, -56),
+            (0, -84), (28, -84), (56, -84), (84, -84), (112, -84), (140, -84),
+        ]
+        for dx, dy in posicoes_casa:
+            casa_blocos.append(self.canvas.create_rectangle(casa_x + dx, casa_y + dy, casa_x + dx + 28, casa_y + dy + 28, fill="#B98750", outline="#5A3923", width=2, state="hidden", tags=tags))
+        telhado = [
+            self.canvas.create_rectangle(casa_x + 24, casa_y - 112, casa_x + 144, casa_y - 84, fill="#A9473F", outline="#5D2825", width=2, state="hidden", tags=tags),
+            self.canvas.create_rectangle(casa_x + 52, casa_y - 140, casa_x + 116, casa_y - 112, fill="#A9473F", outline="#5D2825", width=2, state="hidden", tags=tags),
+        ]
+        porta = self.canvas.create_rectangle(casa_x + 62, casa_y - 56, casa_x + 88, casa_y, fill="#4B301E", outline="#D6A15B", width=2, state="hidden", tags=tags)
+        blocos_extra = []
+        oficina_x, oficina_y = int(larg * 0.42), int(alt * 0.80)
+        for dx, dy in ([(indice * 24, 0) for indice in range(6)] + [(0, -24), (24, -24), (96, -24), (120, -24), (0, -48), (120, -48), (24, -72), (48, -72), (72, -72), (96, -72)]):
+            blocos_extra.append(self.canvas.create_rectangle(oficina_x + dx, oficina_y + dy, oficina_x + dx + 24, oficina_y + dy + 24, fill="#8797A1", outline="#3E4D55", width=2, state="hidden", tags=tags))
+        torre_x, torre_y = int(larg * 0.54), int(alt * 0.72)
+        for dx, dy in [(0, -indice * 22) for indice in range(8)] + [(22, -indice * 22) for indice in range(5)]:
+            blocos_extra.append(self.canvas.create_rectangle(torre_x + dx, torre_y + dy, torre_x + dx + 22, torre_y + dy + 22, fill="#A7B3BD", outline="#56636B", width=2, state="hidden", tags=tags))
+        ponte_y = int(alt * 0.74)
+        proporcao_ponte = (ponte_y - horizonte) / max(1, alt - horizonte)
+        ponte_esq = int(larg * (0.89 - 0.09 * proporcao_ponte)) - 18
+        ponte_dir = int(larg * (0.95 + 0.01 * proporcao_ponte)) + 18
+        largura_ponte_bloco = (ponte_dir - ponte_esq) / 9
+        for indice in range(9):
+            ponte_x = ponte_esq + indice * largura_ponte_bloco
+            blocos_extra.append(self.canvas.create_rectangle(ponte_x, ponte_y, ponte_x + largura_ponte_bloco + 1, ponte_y + 14, fill="#9A673B", outline="#56371F", width=2, state="hidden", tags=tags))
+        mirante_blocos = []
+        mirante_x, mirante_y = int(larg * 0.31), int(alt * 0.74)
+        for dx, dy in ((0, 0), (24, 0), (48, 0), (0, -24), (48, -24), (0, -48), (48, -48), (24, -72), (24, -96)):
+            mirante_blocos.append(self.canvas.create_rectangle(mirante_x + dx, mirante_y + dy, mirante_x + dx + 24, mirante_y + dy + 24, fill="#C48D4A", outline="#65411F", width=2, state="hidden", tags=tags))
+        obras = [
+            {"nome": "a cabana", "blocos": casa_blocos, "alvo": (larg * 0.59, alt * 0.78)},
+            {"nome": "a oficina", "blocos": blocos_extra[:16], "alvo": (larg * 0.41, alt * 0.80)},
+            {"nome": "a torre", "blocos": blocos_extra[16:29], "alvo": (larg * 0.53, alt * 0.70)},
+            {"nome": "a ponte", "blocos": blocos_extra[29:], "alvo": ((ponte_esq + ponte_dir) / 2, alt * 0.74)},
+            {"nome": "o mirante", "blocos": mirante_blocos, "alvo": (larg * 0.31, alt * 0.74)},
+        ]
+        acabamentos = [
+            [],
+            [
+                self.canvas.create_rectangle(oficina_x - 8, oficina_y - 96, oficina_x + 152, oficina_y - 72, fill="#53646D", outline="#2D3C43", width=2, state="hidden", tags=tags),
+                self.canvas.create_rectangle(oficina_x + 57, oficina_y - 48, oficina_x + 84, oficina_y, fill="#394851", outline="#BBC8CF", width=2, state="hidden", tags=tags),
+                self.canvas.create_rectangle(oficina_x + 16, oficina_y - 53, oficina_x + 43, oficina_y - 31, fill="#8DD4F2", outline="#315A70", width=2, state="hidden", tags=tags),
+                self.canvas.create_rectangle(oficina_x + 104, oficina_y - 53, oficina_x + 131, oficina_y - 31, fill="#8DD4F2", outline="#315A70", width=2, state="hidden", tags=tags),
+                self.canvas.create_rectangle(oficina_x + 116, oficina_y - 119, oficina_x + 132, oficina_y - 96, fill="#6D4C37", outline="#3F2D22", width=2, state="hidden", tags=tags),
+            ],
+            [
+                self.canvas.create_rectangle(torre_x - 8, torre_y - 190, torre_x + 52, torre_y - 168, fill="#7A4A3A", outline="#462A22", width=2, state="hidden", tags=tags),
+                self.canvas.create_rectangle(torre_x + 5, torre_y - 145, torre_x + 17, torre_y - 125, fill="#91DAF1", outline="#445D6B", width=1, state="hidden", tags=tags),
+                self.canvas.create_rectangle(torre_x + 5, torre_y - 95, torre_x + 17, torre_y - 75, fill="#91DAF1", outline="#445D6B", width=1, state="hidden", tags=tags),
+                self.canvas.create_line(torre_x + 22, torre_y - 190, torre_x + 22, torre_y - 224, fill="#513326", width=3, state="hidden", tags=tags),
+                self.canvas.create_rectangle(torre_x + 22, torre_y - 224, torre_x + 45, torre_y - 210, fill="#E9B93F", outline="#9C6821", width=1, state="hidden", tags=tags),
+            ],
+            [
+                self.canvas.create_line(ponte_esq, ponte_y - 8, ponte_dir, ponte_y - 8, fill="#684322", width=3, state="hidden", tags=tags),
+                self.canvas.create_line(ponte_esq + 8, ponte_y - 8, ponte_esq + 8, ponte_y - 28, fill="#684322", width=3, state="hidden", tags=tags),
+                self.canvas.create_line(ponte_dir - 8, ponte_y - 8, ponte_dir - 8, ponte_y - 28, fill="#684322", width=3, state="hidden", tags=tags),
+            ],
+            [
+                self.canvas.create_rectangle(mirante_x - 10, mirante_y - 120, mirante_x + 82, mirante_y - 96, fill="#A9473F", outline="#5D2825", width=2, state="hidden", tags=tags),
+                self.canvas.create_rectangle(mirante_x + 23, mirante_y - 67, mirante_x + 49, mirante_y - 43, fill="#8DD4F2", outline="#5A3923", width=2, state="hidden", tags=tags),
+                self.canvas.create_line(mirante_x + 36, mirante_y - 120, mirante_x + 36, mirante_y - 150, fill="#543926", width=3, state="hidden", tags=tags),
+                self.canvas.create_rectangle(mirante_x + 36, mirante_y - 150, mirante_x + 60, mirante_y - 136, fill="#E9B93F", outline="#9C6821", width=1, state="hidden", tags=tags),
+            ],
+        ]
+
+        construtor = {
+            "cabeca": self.canvas.create_rectangle(0, 0, 0, 0, fill="#F0B27A", outline="#8C5634", width=1, tags=tags),
+            "cabelo": self.canvas.create_rectangle(0, 0, 0, 0, fill="#4C3025", outline="", tags=tags),
+            "corpo": self.canvas.create_rectangle(0, 0, 0, 0, fill="#3F91C8", outline="#1F5075", width=1, tags=tags),
+            "perna1": self.canvas.create_rectangle(0, 0, 0, 0, fill="#273B68", outline="", tags=tags),
+            "perna2": self.canvas.create_rectangle(0, 0, 0, 0, fill="#273B68", outline="", tags=tags),
+            "braco": self.canvas.create_line(0, 0, 0, 0, fill="#F0B27A", width=6, tags=tags),
+            "picareta": self.canvas.create_line(0, 0, 0, 0, fill="#6E4B2C", width=3, tags=tags),
+            "bloco": self.canvas.create_rectangle(0, 0, 0, 0, fill="#B98750", outline="#5A3923", width=2, state="hidden", tags=tags),
+        }
+        animais = []
+        for cor, contorno in (("#F5F2E9", "#A4A09A"), ("#FFFFFF", "#C8D3DA")):
+            animais.append({
+                "corpo": self.canvas.create_rectangle(0, 0, 0, 0, fill=cor, outline=contorno, width=1, tags=tags),
+                "cabeca": self.canvas.create_rectangle(0, 0, 0, 0, fill=cor, outline=contorno, width=1, tags=tags),
+                "pernas": self.canvas.create_line(0, 0, 0, 0, fill="#4D4035", width=3, tags=tags),
+            })
+        pedras = [
+            self.canvas.create_rectangle(int(larg * 0.47) + dx, int(alt * 0.77) + dy, int(larg * 0.47) + dx + 20, int(alt * 0.77) + dy + 16, fill="#71808A", outline="#3D4B54", width=2, tags=tags)
+            for dx, dy in ((0, 0), (22, -9), (43, 3))
+        ]
+        particulas = [
+            self.canvas.create_rectangle(0, 0, 0, 0, fill="#D5E2E7", outline="", state="hidden", tags=tags)
+            for _ in range(7)
+        ]
+        rotulo_acao = self.canvas.create_text(0, 0, text="", font=("Segoe UI", 12, "bold"), fill="#FFF0B0", anchor="s", state="hidden", tags=tags)
+        balao = {
+            "corpo": self.canvas.create_oval(0, 0, 0, 0, fill="#F06D50", outline="#FFE3A3", width=2, state="hidden", tags=tags),
+            "cesta": self.canvas.create_rectangle(0, 0, 0, 0, fill="#9A673B", outline="#F3C77A", width=1, state="hidden", tags=tags),
+            "cordas": self.canvas.create_line(0, 0, 0, 0, fill="#F4D6A1", width=1, state="hidden", tags=tags),
+        }
+        estrela_cadente = self.canvas.create_line(0, 0, 0, 0, fill="#FFF5C4", width=3, state="hidden", tags=tags)
+        barra_y = alt - 116
+        tamanho_slot, espaco_slot, quantidade_slots = 42, 5, 9
+        barra_larg = quantidade_slots * tamanho_slot + (quantidade_slots + 1) * espaco_slot
+        barra_x = (larg - barra_larg) / 2
+        barra_fundo = self.canvas.create_rectangle(barra_x, barra_y, barra_x + barra_larg, barra_y + tamanho_slot + 10, fill="#29363D", outline="#A9B8BA", width=2, tags=tags)
+        slots_barra, icones_barra = [], []
+        cores_itens = ("#A87843", "#7D8D99", "#70B657", "#C79B54", "#62B7D4", "#D05C45", "#E6C24F", "#A778B8", "#EFF2E4")
+        for indice, cor_item in enumerate(cores_itens):
+            x_slot = barra_x + espaco_slot + indice * (tamanho_slot + espaco_slot)
+            slots_barra.append(self.canvas.create_rectangle(x_slot, barra_y + 5, x_slot + tamanho_slot, barra_y + 5 + tamanho_slot, fill="#172127", outline="#75858A", width=2, tags=tags))
+            if indice in (0, 1, 3):
+                icones_barra.append(self.canvas.create_line(x_slot + 11, barra_y + 37, x_slot + 30, barra_y + 15, fill=cor_item, width=5, tags=tags))
+                icones_barra.append(self.canvas.create_line(x_slot + 21, barra_y + 14, x_slot + 34, barra_y + 18, fill="#D7E2E1", width=4, tags=tags))
+            elif indice == 4:
+                icones_barra.append(self.canvas.create_rectangle(x_slot + 11, barra_y + 15, x_slot + 31, barra_y + 35, fill=cor_item, outline="#D8F4FF", width=1, tags=tags))
+            else:
+                icones_barra.append(self.canvas.create_rectangle(x_slot + 12, barra_y + 15, x_slot + 31, barra_y + 34, fill=cor_item, outline="#1C2930", width=1, tags=tags))
+        selecao_barra = self.canvas.create_rectangle(0, 0, 0, 0, outline="#F4E7A6", width=3, tags=tags)
+        barra_status = self.canvas.create_text(larg / 2, barra_y - 12, text="VILA: 0/5", font=("Segoe UI", 11, "bold"), fill="#F4E7A6", anchor="s", tags=tags)
+        criatura = {
+            "cabeca": self.canvas.create_rectangle(0, 0, 0, 0, fill="#5CAD48", outline="#1E4E2D", width=2, state="hidden", tags=tags),
+            "corpo": self.canvas.create_rectangle(0, 0, 0, 0, fill="#4B9A42", outline="#1E4E2D", width=2, state="hidden", tags=tags),
+            "perna1": self.canvas.create_rectangle(0, 0, 0, 0, fill="#387C37", outline="#1E4E2D", width=1, state="hidden", tags=tags),
+            "perna2": self.canvas.create_rectangle(0, 0, 0, 0, fill="#387C37", outline="#1E4E2D", width=1, state="hidden", tags=tags),
+            "olho1": self.canvas.create_rectangle(0, 0, 0, 0, fill="#172B22", outline="", state="hidden", tags=tags),
+            "olho2": self.canvas.create_rectangle(0, 0, 0, 0, fill="#172B22", outline="", state="hidden", tags=tags),
+            "boca": self.canvas.create_rectangle(0, 0, 0, 0, fill="#172B22", outline="", state="hidden", tags=tags),
+        }
+        explosao = [
+            self.canvas.create_rectangle(0, 0, 0, 0, fill="#FFCC3D", outline="#F26430", width=1, state="hidden", tags=tags)
+            for _ in range(18)
+        ]
+
+        self._blocos_cena = {
+            "larg": larg, "alt": alt, "horizonte": horizonte, "ceu": ceu, "estrelas": estrelas,
+            "sol": sol, "sol_aura": sol_aura, "lua": lua, "morros": morros, "solo": solo, "grama": grama,
+            "detalhes_solo": detalhes_solo, "rio": rio, "ondas_rio": ondas_rio, "arvores": arvores, "horta": horta,
+            "casa_blocos": casa_blocos, "blocos_extra": blocos_extra, "obras": obras, "acabamentos": acabamentos, "telhado": telhado, "porta": porta, "construtor": construtor, "animais": animais,
+            "pedras": pedras, "particulas": particulas, "rotulo_acao": rotulo_acao, "balao": balao, "estrela_cadente": estrela_cadente, "criatura": criatura, "explosao": explosao,
+            "barra": {"slots": slots_barra, "selecao": selecao_barra, "status": barra_status, "x": barra_x, "y": barra_y, "tamanho": tamanho_slot, "espaco": espaco_slot},
+            "construtor_x": float(int(larg * 0.58)), "construtor_y": float(int(alt * 0.78)),
+            "estado": "construindo", "inicio_acao": time.time(), "fim_acao": time.time(),
+            "proxima_acao": time.time(), "progresso_obras": [12, 0, 0, 0, 0], "reparo_indice": None,
+            "ataque_fase": "", "ataque_alvo": None, "ultimo_ataque": -1, "ataque_x": -80.0, "ataque_y": 0.0, "ataque_inicio": 0.0,
+            "proximo_ataque": time.time() + random.uniform(12, 22),
+            "evento_ambiente": "", "evento_inicio": 0.0, "evento_fim": 0.0,
+            "proximo_evento_ambiente": time.time() + random.uniform(18, 32),
+        }
+        self._atualizar_cena_blocos(datetime.now(), time.time())
+        self._animacao_blocos_ativa = True
+        self._animacao_blocos_after = self.after(100, self._loop_animacao_blocos)
+
+    def _atualizar_cena_blocos(self, agora, agora_ts):
+        """Atualiza o ciclo do mundo de blocos sem usar imagens externas."""
+        cena = self._blocos_cena
+        if not cena:
+            return
+        larg, alt, horizonte = cena["larg"], cena["alt"], cena["horizonte"]
+        solar = self._obter_estado_solar(agora, larg, alt)
+        for indice, item in enumerate(cena["ceu"]):
+            self.canvas.itemconfig(item, fill=self._mix_cor(solar["ceu_topo"], solar["ceu_base"], indice / 6))
+        noite = not solar["sol_visivel"]
+        for estrela in cena["estrelas"]:
+            self.canvas.itemconfig(estrela, state="normal" if noite else "hidden")
+        if solar["sol_visivel"]:
+            sx, sy = solar["sol_x"], solar["sol_y"]
+            self.canvas.coords(cena["sol_aura"], sx - 54, sy - 54, sx + 54, sy + 54)
+            self.canvas.coords(cena["sol"], sx - 28, sy - 28, sx + 28, sy + 28)
+            self.canvas.itemconfig(cena["sol_aura"], fill=solar["sol_cor"], state="normal")
+            self.canvas.itemconfig(cena["sol"], fill=solar["sol_cor"], state="normal")
+            self.canvas.itemconfig(cena["lua"], state="hidden")
+        else:
+            self.canvas.itemconfig(cena["sol"], state="hidden")
+            self.canvas.itemconfig(cena["sol_aura"], state="hidden")
+            self.canvas.coords(cena["lua"], int(larg * 0.80) - 20, int(horizonte * 0.20) - 20, int(larg * 0.80) + 20, int(horizonte * 0.20) + 20)
+            self.canvas.itemconfig(cena["lua"], state="normal")
+
+        for indice, onda in enumerate(cena["ondas_rio"]):
+            y = horizonte + 28 + indice * 42
+            deslocamento = math.sin(agora_ts * 1.5 + indice) * 12
+            proporcao_rio = (y - horizonte) / max(1, alt - horizonte)
+            margem_esq = larg * (0.89 - 0.09 * proporcao_rio)
+            margem_dir = larg * (0.95 + 0.01 * proporcao_rio)
+            self.canvas.coords(onda, margem_esq + 12 + deslocamento, y, margem_dir - 12 + deslocamento, y)
+
+        obras = cena["obras"]
+        progresso = cena["progresso_obras"]
+        indice_obra = cena["reparo_indice"]
+        reparando = indice_obra is not None
+        if indice_obra is None:
+            indice_obra = next((indice for indice, obra in enumerate(obras) if progresso[indice] < len(obra["blocos"])), None)
+
+        if indice_obra is None:
+            # A vila pronta continua viva, mas uma nova ameaca so e liberada apos o reparo anterior.
+            ciclo = int(agora_ts / 5) % len(obras)
+            alvo_x, alvo_y = obras[ciclo]["alvo"]
+            texto_acao = "Inspecionando " + obras[ciclo]["nome"]
+        else:
+            alvo_x, alvo_y = obras[indice_obra]["alvo"]
+            texto_acao = ("Consertando " if reparando else "Construindo ") + obras[indice_obra]["nome"]
+
+        cena["construtor_x"] = self._aproximar_valor(cena["construtor_x"], alvo_x, 3.6)
+        cena["construtor_y"] = self._aproximar_valor(cena["construtor_y"], alvo_y, 2.2)
+        x, y = cena["construtor_x"], cena["construtor_y"]
+        em_acao = indice_obra is not None and abs(x - alvo_x) < 5 and abs(y - alvo_y) < 4
+        if em_acao and agora_ts >= cena["fim_acao"]:
+            progresso[indice_obra] = min(len(obras[indice_obra]["blocos"]), progresso[indice_obra] + 1)
+            cena["inicio_acao"] = agora_ts
+            cena["fim_acao"] = agora_ts + 0.72
+            if reparando and progresso[indice_obra] == len(obras[indice_obra]["blocos"]):
+                cena["reparo_indice"] = None
+                cena["proximo_ataque"] = agora_ts + random.uniform(12, 22)
+
+        todas_concluidas = all(progresso[indice] == len(obra["blocos"]) for indice, obra in enumerate(obras))
+        if not solar["sol_visivel"] and cena["ataque_fase"]:
+            cena["ataque_fase"] = ""
+            cena["proximo_ataque"] = agora_ts + random.uniform(12, 22)
+        if (solar["sol_visivel"] and todas_concluidas and cena["reparo_indice"] is None
+                and not cena["ataque_fase"] and agora_ts >= cena["proximo_ataque"]):
+            alvos_possiveis = [indice for indice in range(len(obras)) if indice != cena["ultimo_ataque"]]
+            cena["ataque_alvo"] = random.choice(alvos_possiveis)
+            cena["ataque_fase"] = "aproximando"
+            cena["ataque_x"] = -48.0
+            cena["ataque_y"] = alt * 0.79
+
+        if cena["ataque_fase"] == "aproximando":
+            alvo_ataque_x, alvo_ataque_y = obras[cena["ataque_alvo"]]["alvo"]
+            cena["ataque_x"] = self._aproximar_valor(cena["ataque_x"], alvo_ataque_x - 42, 2.5)
+            cena["ataque_y"] = self._aproximar_valor(cena["ataque_y"], alvo_ataque_y, 1.6)
+            if abs(cena["ataque_x"] - (alvo_ataque_x - 42)) < 4 and abs(cena["ataque_y"] - alvo_ataque_y) < 3:
+                cena["ataque_fase"] = "explodindo"
+                cena["ataque_inicio"] = agora_ts
+        elif cena["ataque_fase"] == "explodindo" and agora_ts - cena["ataque_inicio"] > 1.0:
+            alvo_destruido = cena["ataque_alvo"]
+            dano = min(4, max(2, len(obras[alvo_destruido]["blocos"]) // 3))
+            progresso[alvo_destruido] = max(0, progresso[alvo_destruido] - dano)
+            cena["ultimo_ataque"] = alvo_destruido
+            cena["reparo_indice"] = alvo_destruido
+            cena["ataque_fase"] = ""
+            cena["ataque_alvo"] = None
+            cena["fim_acao"] = agora_ts
+
+        passo = math.sin(agora_ts * 9) * 5 if not em_acao else 0
+        c = cena["construtor"]
+        escala = 0.72 + ((y - horizonte) / max(1, alt - horizonte)) * 0.38
+        self.canvas.coords(c["cabeca"], x - 10 * escala, y - 48 * escala, x + 10 * escala, y - 28 * escala)
+        self.canvas.coords(c["cabelo"], x - 11 * escala, y - 51 * escala, x + 11 * escala, y - 43 * escala)
+        self.canvas.coords(c["corpo"], x - 13 * escala, y - 28 * escala, x + 13 * escala, y - 4 * escala)
+        self.canvas.coords(c["perna1"], x - 11 * escala, y - 4 * escala, x - 2 * escala + passo * escala, y + 18 * escala)
+        self.canvas.coords(c["perna2"], x + 2 * escala, y - 4 * escala, x + 11 * escala - passo * escala, y + 18 * escala)
+        mao_x = x + 20 * escala
+        mao_y = y - 20 * escala + (math.sin(agora_ts * 8) * 8 * escala if em_acao else 0)
+        self.canvas.coords(c["braco"], x + 9 * escala, y - 23 * escala, mao_x, mao_y)
+        self.canvas.coords(c["picareta"], mao_x - 6 * escala, mao_y - 12 * escala, mao_x + 11 * escala, mao_y + 13 * escala)
+        if em_acao:
+            self.canvas.coords(c["bloco"], mao_x + 4 * escala, mao_y - 8 * escala, mao_x + 20 * escala, mao_y + 8 * escala)
+            self.canvas.itemconfig(c["bloco"], state="normal")
+        else:
+            self.canvas.itemconfig(c["bloco"], state="hidden")
+
+        for indice, obra in enumerate(obras):
+            for indice_bloco, bloco_obra in enumerate(obra["blocos"]):
+                self.canvas.itemconfig(bloco_obra, state="normal" if indice_bloco < progresso[indice] else "hidden")
+            obra_pronta = progresso[indice] == len(obra["blocos"])
+            for acabamento in cena["acabamentos"][indice]:
+                self.canvas.itemconfig(acabamento, state="normal" if obra_pronta else "hidden")
+        telhado_visivel = progresso[0] >= len(cena["casa_blocos"]) - 3
+        for item in cena["telhado"]:
+            self.canvas.itemconfig(item, state="normal" if telhado_visivel else "hidden")
+        self.canvas.itemconfig(cena["porta"], state="normal" if progresso[0] >= 12 else "hidden")
+
+        concluidas = sum(progresso[indice] == len(obra["blocos"]) for indice, obra in enumerate(obras))
+        barra = cena["barra"]
+        slot_ativo = indice_obra if indice_obra is not None else int(agora_ts / 5) % len(barra["slots"])
+        x_slot = barra["x"] + barra["espaco"] + slot_ativo * (barra["tamanho"] + barra["espaco"])
+        self.canvas.coords(barra["selecao"], x_slot - 2, barra["y"] + 3, x_slot + barra["tamanho"] + 2, barra["y"] + barra["tamanho"] + 9)
+        estado_vila = "REPARO" if cena["reparo_indice"] is not None else "VILA"
+        self.canvas.itemconfig(barra["status"], text=f"{estado_vila}: {concluidas}/5")
+
+        for indice, animal in enumerate(cena["animais"]):
+            base_x = larg * (0.14 + indice * 0.24)
+            animal_x = base_x + math.sin(agora_ts * (0.36 + indice * 0.07)) * 35
+            animal_y = alt * (0.73 + indice * 0.025)
+            self.canvas.coords(animal["corpo"], animal_x - 18, animal_y - 17, animal_x + 18, animal_y)
+            self.canvas.coords(animal["cabeca"], animal_x + 15, animal_y - 20, animal_x + 29, animal_y - 5)
+            self.canvas.coords(animal["pernas"], animal_x - 11, animal_y, animal_x - 11, animal_y + 11, animal_x + 10, animal_y, animal_x + 10, animal_y + 11)
+
+        self.canvas.coords(cena["rotulo_acao"], x, y - 66)
+        self.canvas.itemconfig(cena["rotulo_acao"], text=texto_acao, state="normal")
+        for indice, particula in enumerate(cena["particulas"]):
+            if em_acao:
+                fase = agora_ts * 7 + indice * 1.7
+                px = mao_x + math.cos(fase) * (8 + indice * 2)
+                py = mao_y - abs(math.sin(fase)) * (7 + indice * 3)
+                self.canvas.coords(particula, px - 3, py - 3, px + 3, py + 3)
+                self.canvas.itemconfig(particula, fill="#FFF0B0", state="normal")
+            else:
+                self.canvas.itemconfig(particula, state="hidden")
+
+        for item in cena["criatura"].values():
+            self.canvas.itemconfig(item, state="hidden")
+        for fragmento in cena["explosao"]:
+            self.canvas.itemconfig(fragmento, state="hidden")
+        if cena["ataque_fase"] == "aproximando":
+            ax, ay = cena["ataque_x"], cena["ataque_y"]
+            escala_ameaca = 0.72 + ((ay - horizonte) / max(1, alt - horizonte)) * 0.34
+            criatura = cena["criatura"]
+            self.canvas.coords(criatura["cabeca"], ax - 15 * escala_ameaca, ay - 67 * escala_ameaca, ax + 15 * escala_ameaca, ay - 39 * escala_ameaca)
+            self.canvas.coords(criatura["corpo"], ax - 13 * escala_ameaca, ay - 40 * escala_ameaca, ax + 13 * escala_ameaca, ay - 13 * escala_ameaca)
+            self.canvas.coords(criatura["perna1"], ax - 12 * escala_ameaca, ay - 13 * escala_ameaca, ax - 2 * escala_ameaca, ay + 10 * escala_ameaca)
+            self.canvas.coords(criatura["perna2"], ax + 2 * escala_ameaca, ay - 13 * escala_ameaca, ax + 12 * escala_ameaca, ay + 10 * escala_ameaca)
+            self.canvas.coords(criatura["olho1"], ax - 9 * escala_ameaca, ay - 60 * escala_ameaca, ax - 4 * escala_ameaca, ay - 54 * escala_ameaca)
+            self.canvas.coords(criatura["olho2"], ax + 4 * escala_ameaca, ay - 60 * escala_ameaca, ax + 9 * escala_ameaca, ay - 54 * escala_ameaca)
+            self.canvas.coords(criatura["boca"], ax - 5 * escala_ameaca, ay - 52 * escala_ameaca, ax + 5 * escala_ameaca, ay - 45 * escala_ameaca)
+            for item in criatura.values():
+                self.canvas.itemconfig(item, state="normal")
+        elif cena["ataque_fase"] == "explodindo":
+            alvo_x, alvo_y = obras[cena["ataque_alvo"]]["alvo"]
+            fase_explosao = min(1.0, (agora_ts - cena["ataque_inicio"]) / 1.0)
+            raio = 12 + fase_explosao * 58
+            for indice, fragmento in enumerate(cena["explosao"]):
+                angulo = (math.tau * indice / len(cena["explosao"])) + agora_ts * 2
+                px = alvo_x + math.cos(angulo) * raio
+                py = alvo_y - 28 + math.sin(angulo) * raio * 0.62
+                tamanho = 8 + (indice % 3) * 4
+                self.canvas.coords(fragmento, px - tamanho, py - tamanho, px + tamanho, py + tamanho)
+                self.canvas.itemconfig(fragmento, state="normal")
+
+        if not cena["evento_ambiente"] and agora_ts >= cena["proximo_evento_ambiente"]:
+            cena["evento_ambiente"] = "estrela" if noite else "balao"
+            cena["evento_inicio"] = agora_ts
+            cena["evento_fim"] = agora_ts + (4.5 if noite else 13.0)
+        if cena["evento_ambiente"] and agora_ts >= cena["evento_fim"]:
+            cena["evento_ambiente"] = ""
+            cena["proximo_evento_ambiente"] = agora_ts + random.uniform(35, 70)
+
+        for item in cena["balao"].values():
+            self.canvas.itemconfig(item, state="hidden")
+        self.canvas.itemconfig(cena["estrela_cadente"], state="hidden")
+        if cena["evento_ambiente"] == "balao":
+            fase_balao = (agora_ts - cena["evento_inicio"]) / 13.0
+            bx = larg * (-0.08 + fase_balao * 1.16)
+            by = horizonte * 0.28 + math.sin(agora_ts * 1.3) * 9
+            self.canvas.coords(cena["balao"]["corpo"], bx - 18, by - 26, bx + 18, by + 20)
+            self.canvas.coords(cena["balao"]["cesta"], bx - 7, by + 29, bx + 7, by + 39)
+            self.canvas.coords(cena["balao"]["cordas"], bx - 10, by + 16, bx - 5, by + 29, bx + 10, by + 16, bx + 5, by + 29)
+            for item in cena["balao"].values():
+                self.canvas.itemconfig(item, state="normal")
+        elif cena["evento_ambiente"] == "estrela":
+            fase_estrela = (agora_ts - cena["evento_inicio"]) / 4.5
+            sx = larg * (0.18 + fase_estrela * 0.48)
+            sy = horizonte * (0.12 + fase_estrela * 0.48)
+            self.canvas.coords(cena["estrela_cadente"], sx - 42, sy - 24, sx, sy)
+            self.canvas.itemconfig(cena["estrela_cadente"], state="normal")
+
+    def _loop_animacao_blocos(self):
+        if not self._animacao_blocos_ativa or not self._blocos_cena:
+            return
+        try:
+            if not self.winfo_exists():
+                return
+        except tk.TclError:
+            return
+        self._atualizar_cena_blocos(datetime.now(), time.time())
+        self._animacao_blocos_after = self.after(100, self._loop_animacao_blocos)
+
+    def _parar_animacao_blocos(self):
+        self._animacao_blocos_ativa = False
+        if self._animacao_blocos_after is not None:
+            try:
+                self.after_cancel(self._animacao_blocos_after)
+            except Exception:
+                pass
+        self._animacao_blocos_after = None
+        self._blocos_cena = {}
+
+    def _desenhar_fundo_voo(self, larg, alt, cor_destaque):
+        """Cria um voo automatico sobre um rio, com desvio e abastecimento seguro."""
+        return self._desenhar_fundo_voo_pixel(larg, alt, cor_destaque)
+        tags = self._tags_fundo_voo
+        ceu = self.canvas.create_rectangle(0, 0, larg, alt, fill="#7DB9E8", outline="", tags=tags)
+        for indice in range(7):
+            y = int(alt * indice / 7)
+            self.canvas.create_rectangle(0, y, larg, y + int(alt / 7) + 1, fill=self._mix_cor("#75B8F0", "#D8F0FC", indice / 7), outline="", tags=tags)
+
+        def margem_rio(y):
+            centro = larg * (0.5 + math.sin(y / max(1, alt) * math.tau * 0.72) * 0.075)
+            largura = larg * (0.17 + 0.28 * y / max(1, alt))
+            return centro - largura / 2, centro + largura / 2
+
+        pontos_esq = [margem_rio(y)[0] for y in range(0, alt + 1, max(1, int(alt / 18)))]
+        pontos_dir = [margem_rio(y)[1] for y in range(0, alt + 1, max(1, int(alt / 18)))]
+        ys = list(range(0, alt + 1, max(1, int(alt / 18))))
+        poligono_rio = []
+        for x, y in zip(pontos_esq, ys):
+            poligono_rio.extend((x, y))
+        for x, y in zip(reversed(pontos_dir), reversed(ys)):
+            poligono_rio.extend((x, y))
+        self.canvas.create_polygon(*poligono_rio, fill="#2D91C4", outline="#C5F1FF", width=3, tags=tags)
+
+        for lado in (0.16, 0.84):
+            for indice in range(11):
+                x = int(larg * lado + math.sin(indice * 2.4) * larg * 0.05)
+                y = int(alt * (0.08 + indice * 0.095))
+                self.canvas.create_rectangle(x - 26, y - 20, x + 26, y + 22, fill="#4F9E45", outline="#276233", width=2, tags=tags)
+                self.canvas.create_rectangle(x - 7, y + 18, x + 7, y + 40, fill="#755131", outline="#4A3020", width=1, tags=tags)
+
+        ondas = [self.canvas.create_line(0, 0, 0, 0, fill="#B9ECFA", width=2, tags=tags) for _ in range(13)]
+        trilhas = [self.canvas.create_line(0, 0, 0, 0, fill="#D8F5FF", width=2, tags=tags) for _ in range(5)]
+        aviao = {
+            "asa": self.canvas.create_polygon(0, 0, 0, 0, 0, 0, fill="#E9F4F7", outline="#173D59", width=2, tags=tags),
+            "corpo": self.canvas.create_polygon(0, 0, 0, 0, 0, 0, fill="#F04C48", outline="#67282B", width=2, tags=tags),
+            "cabine": self.canvas.create_rectangle(0, 0, 0, 0, fill="#8EE2F5", outline="#24546E", width=1, tags=tags),
+            "cauda": self.canvas.create_polygon(0, 0, 0, 0, 0, 0, fill="#F4D66B", outline="#775A22", width=1, tags=tags),
+        }
+        obstaculos = []
+        for indice in range(9):
+            obstaculos.append({
+                "tipo": random.choice(("barco", "helicoptero", "balao", "nuvem")),
+                "x": 0.0, "y": float(indice * alt / 9), "velocidade": random.uniform(1.5, 3.2),
+                "fase": random.uniform(0, math.tau),
+                "corpo": self.canvas.create_oval(0, 0, 0, 0, fill="#FFFFFF", outline="#274A61", width=2, tags=tags),
+                "detalhe": self.canvas.create_line(0, 0, 0, 0, fill="#274A61", width=2, tags=tags),
+                "extra": self.canvas.create_rectangle(0, 0, 0, 0, fill="#F4D86A", outline="#604B22", width=1, tags=tags),
+            })
+        posto = {
+            "ativo": False, "x": larg * 0.5, "y": -100.0,
+            "plataforma": self.canvas.create_rectangle(0, 0, 0, 0, fill="#F2A538", outline="#70431E", width=2, state="hidden", tags=tags),
+            "bomba": self.canvas.create_rectangle(0, 0, 0, 0, fill="#D94D3F", outline="#5C2824", width=2, state="hidden", tags=tags),
+            "letreiro": self.canvas.create_text(0, 0, text="REABASTECER", font=("Segoe UI", 11, "bold"), fill="#FFF5C8", state="hidden", tags=tags),
+        }
+        hud_y = alt - 86
+        tanque = {
+            "fundo": self.canvas.create_rectangle(larg / 2 - 160, hud_y, larg / 2 + 160, hud_y + 22, fill="#172832", outline="#DCE9E9", width=2, tags=tags),
+            "nivel": self.canvas.create_rectangle(larg / 2 - 156, hud_y + 4, larg / 2 + 156, hud_y + 18, fill="#66D06C", outline="", tags=tags),
+            "texto": self.canvas.create_text(larg / 2, hud_y - 7, text="COMBUSTIVEL 100%", font=("Segoe UI", 11, "bold"), fill="#F3F7E8", anchor="s", tags=tags),
+            "estado": self.canvas.create_text(larg / 2, hud_y + 38, text="VOO AUTOMATICO", font=("Segoe UI", 9, "bold"), fill="#D6EDF2", anchor="n", tags=tags),
+        }
+        self._voo_cena = {
+            "larg": larg, "alt": alt, "margem_rio": margem_rio, "ondas": ondas, "trilhas": trilhas, "aviao": aviao,
+            "obstaculos": obstaculos, "posto": posto, "tanque": tanque, "aviao_x": larg * 0.5, "alvo_x": larg * 0.5,
+            "aviao_y": alt * 0.76, "combustivel": 100.0, "reabastecendo": False, "ultimo_tempo": time.time(),
+        }
+        self._atualizar_cena_voo(time.time())
+        self._animacao_voo_ativa = True
+        self._animacao_voo_after = self.after(80, self._loop_animacao_voo)
+
+    def _atualizar_cena_voo(self, agora_ts):
+        """Atualiza a rota segura, os obstaculos e o abastecimento do voo."""
+        cena = self._voo_cena
+        if not cena:
+            return
+        larg, alt = cena["larg"], cena["alt"]
+        margem_rio = cena["margem_rio"]
+        aviao_y = cena["aviao_y"]
+        esquerda, direita = margem_rio(aviao_y)
+        centro = (esquerda + direita) / 2
+        largura_segura = (direita - esquerda) * 0.34
+        dt = min(0.2, max(0.02, agora_ts - cena["ultimo_tempo"]))
+        cena["ultimo_tempo"] = agora_ts
+        cena["combustivel"] = max(0.0, cena["combustivel"] - dt * 1.55)
+
+        for indice, onda in enumerate(cena["ondas"]):
+            y = ((agora_ts * 80 + indice * 98) % (alt + 120)) - 60
+            esq, dir_ = margem_rio(y)
+            self.canvas.coords(onda, esq + 16, y, dir_ - 16, y)
+        for indice, trilha in enumerate(cena["trilhas"]):
+            y = aviao_y + 42 + indice * 18
+            self.canvas.coords(trilha, cena["aviao_x"] - 8 + indice * 3, y, cena["aviao_x"] + 8 - indice * 3, y + 20)
+
+        alvo_x = centro
+        posto = cena["posto"]
+        if cena["combustivel"] < 28 and not posto["ativo"]:
+            posto["ativo"] = True
+            posto["x"] = centro + random.uniform(-largura_segura * 0.45, largura_segura * 0.45)
+            posto["y"] = -70.0
+        if posto["ativo"]:
+            if cena["reabastecendo"]:
+                posto["y"] = aviao_y
+            else:
+                posto["y"] += 7.0
+            alvo_x = posto["x"]
+
+        for obstaculo in cena["obstaculos"]:
+            obstaculo["y"] += obstaculo["velocidade"] * (dt * 12)
+            if obstaculo["y"] > alt + 90:
+                obstaculo["tipo"] = random.choice(("barco", "helicoptero", "balao", "nuvem"))
+                obstaculo["y"] = random.uniform(-260, -70)
+                obstaculo["velocidade"] = random.uniform(1.5, 3.2)
+                obstaculo["fase"] = random.uniform(0, math.tau)
+            esq, dir_ = margem_rio(obstaculo["y"])
+            obstaculo["x"] = (esq + dir_) / 2 + math.sin(agora_ts * 0.75 + obstaculo["fase"]) * (dir_ - esq) * 0.24
+            if not posto["ativo"] and abs(obstaculo["y"] - aviao_y) < 100:
+                deslocamento = (dir_ - esq) * 0.27
+                alvo_x = centro - deslocamento if obstaculo["x"] >= cena["aviao_x"] else centro + deslocamento
+            self._desenhar_obstaculo_voo(obstaculo)
+
+        alvo_x = max(esquerda + 34, min(direita - 34, alvo_x))
+        cena["alvo_x"] = alvo_x
+        cena["aviao_x"] = self._aproximar_valor(cena["aviao_x"], alvo_x, 4.8)
+        x, y = cena["aviao_x"], aviao_y
+        aviao = cena["aviao"]
+        inclinacao = max(-16, min(16, (alvo_x - x) * 0.24))
+        self.canvas.coords(aviao["asa"], x - 48, y + 8, x - 12, y - 4, x + 50, y + 8, x + 14, y + 19)
+        self.canvas.coords(aviao["corpo"], x - 13, y + 30, x - 13, y - 38, x, y - 57, x + 13, y - 38, x + 13, y + 30)
+        self.canvas.coords(aviao["cabine"], x - 7, y - 29, x + 7, y - 12)
+        self.canvas.coords(aviao["cauda"], x - 13, y + 18, x - 29 - inclinacao * 0.15, y + 35, x - 13, y + 29)
+
+        if posto["ativo"]:
+            px, py = posto["x"], posto["y"]
+            self.canvas.coords(posto["plataforma"], px - 68, py - 10, px + 68, py + 12)
+            self.canvas.coords(posto["bomba"], px - 13, py - 42, px + 13, py - 10)
+            self.canvas.coords(posto["letreiro"], px, py - 58)
+            for item in (posto["plataforma"], posto["bomba"], posto["letreiro"]):
+                self.canvas.itemconfig(item, state="normal")
+            if abs(py - y) < 35 and abs(px - x) < 32:
+                cena["reabastecendo"] = True
+                posto["y"] = y
+                cena["combustivel"] = min(100.0, cena["combustivel"] + dt * 45)
+            if cena["reabastecendo"] and cena["combustivel"] >= 99.5:
+                posto["ativo"] = False
+                cena["reabastecendo"] = False
+        else:
+            for item in (posto["plataforma"], posto["bomba"], posto["letreiro"]):
+                self.canvas.itemconfig(item, state="hidden")
+
+        combustivel = cena["combustivel"]
+        cor_tanque = "#62D56B" if combustivel >= 45 else "#F0C451" if combustivel >= 25 else "#F06B4E"
+        tanque = cena["tanque"]
+        x1, y1, x2, y2 = self.canvas.coords(tanque["fundo"])
+        self.canvas.coords(tanque["nivel"], x1 + 4, y1 + 4, x1 + 4 + (x2 - x1 - 8) * combustivel / 100, y2 - 4)
+        self.canvas.itemconfig(tanque["nivel"], fill=cor_tanque)
+        self.canvas.itemconfig(tanque["texto"], text=f"COMBUSTIVEL {int(combustivel):02d}%")
+        estado = "REABASTECENDO" if cena["reabastecendo"] else "ROTA SEGURA"
+        self.canvas.itemconfig(tanque["estado"], text=estado, fill=cor_tanque)
+
+    def _desenhar_obstaculo_voo(self, obstaculo):
+        """Desenha cada obstaculo com silhueta propria, mantendo o voo sem combate."""
+        x, y, tipo = obstaculo["x"], obstaculo["y"], obstaculo["tipo"]
+        corpo, detalhe, extra = obstaculo["corpo"], obstaculo["detalhe"], obstaculo["extra"]
+        if tipo == "barco":
+            self.canvas.coords(corpo, x - 28, y - 8, x + 28, y + 12)
+            self.canvas.itemconfig(corpo, fill="#EAE8D7", outline="#263D4C")
+            self.canvas.coords(detalhe, x, y - 30, x, y - 6)
+            self.canvas.coords(extra, x - 3, y - 30, x + 19, y - 14)
+        elif tipo == "helicoptero":
+            self.canvas.coords(corpo, x - 22, y - 11, x + 23, y + 11)
+            self.canvas.itemconfig(corpo, fill="#E6B74B", outline="#604519")
+            self.canvas.coords(detalhe, x - 34, y - 22, x + 35, y - 22)
+            self.canvas.coords(extra, x + 20, y - 4, x + 43, y + 3)
+        elif tipo == "balao":
+            self.canvas.coords(corpo, x - 17, y - 30, x + 17, y + 8)
+            self.canvas.itemconfig(corpo, fill="#F06E59", outline="#78382B")
+            self.canvas.coords(detalhe, x - 8, y + 8, x - 4, y + 20, x + 8, y + 8, x + 4, y + 20)
+            self.canvas.coords(extra, x - 7, y + 20, x + 7, y + 30)
+        else:
+            self.canvas.coords(corpo, x - 38, y - 16, x + 38, y + 15)
+            self.canvas.itemconfig(corpo, fill="#F2FAFF", outline="#B9DCEA")
+            self.canvas.coords(detalhe, x - 54, y + 1, x + 54, y + 1)
+            self.canvas.coords(extra, x - 9, y - 25, x + 15, y + 8)
+
+    def _desenhar_fundo_voo_pixel(self, larg, alt, cor_destaque):
+        """Cena arcade original, limpa e legivel, inspirada em voos verticais classicos."""
+        tags = self._tags_fundo_voo
+        hud_top = alt - max(135, int(alt * 0.15))
+        rio_largo_esq, rio_largo_dir = int(larg * 0.23), int(larg * 0.77)
+        rio_esq, rio_dir = int(larg * 0.365), int(larg * 0.635)
+        self.canvas.create_rectangle(0, 0, larg, hud_top, fill="#4CB273", outline="", tags=tags)
+        def margens_rio(y, deslocamento=0.0):
+            # Secoes largas e estreitas percorrem a tela; nenhuma margem fica fixa em funil.
+            mundo_y = y - deslocamento
+            largura_relativa = 0.34 + 0.12 * ((math.sin(mundo_y / 190) + 1) / 2)
+            largura_relativa = round(largura_relativa * 18) / 18
+            centro = larg / 2 + math.sin(mundo_y / 430) * larg * 0.025
+            return centro - larg * largura_relativa / 2, centro + larg * largura_relativa / 2
+
+        def pontos_do_rio(deslocamento=0.0):
+            passos_y = list(range(0, hud_top + 1, max(12, int(hud_top / 22))))
+            pontos = []
+            for y in passos_y:
+                margem_esq, _ = margens_rio(y, deslocamento)
+                pontos.extend((margem_esq, y))
+            for y in reversed(passos_y):
+                _, margem_dir = margens_rio(y, deslocamento)
+                pontos.extend((margem_dir, y))
+            return pontos
+
+        rio_item = self.canvas.create_polygon(*pontos_do_rio(), fill="#355E9F", outline="", tags=tags)
+
+        # Linhas claras da margem e faixa de estrada antes do painel de instrumentos.
+        estrada_esq = self.canvas.create_rectangle(0, hud_top - 7, rio_esq, hud_top, fill="#77797A", outline="", tags=tags)
+        estrada_dir = self.canvas.create_rectangle(rio_dir, hud_top - 7, larg, hud_top, fill="#77797A", outline="", tags=tags)
+        faixa_esq = self.canvas.create_rectangle(0, hud_top - 15, rio_esq, hud_top - 7, fill="#EDE56A", outline="", tags=tags)
+        faixa_dir = self.canvas.create_rectangle(rio_dir, hud_top - 15, larg, hud_top - 7, fill="#EDE56A", outline="", tags=tags)
+
+        ondas = [self.canvas.create_line(0, 0, 0, 0, fill="#7B6BF0", width=2, tags=tags) for _ in range(8)]
+        aviao = {
+            "sombra": self.canvas.create_polygon(0, 0, 0, 0, 0, 0, fill="#203D87", outline="", tags=tags),
+            "corpo": self.canvas.create_polygon(0, 0, 0, 0, 0, 0, fill="#F4C63E", outline="#8E6417", width=2, tags=tags),
+            "asas": self.canvas.create_polygon(0, 0, 0, 0, 0, 0, fill="#FFE96B", outline="#B77A1A", width=2, tags=tags),
+            "cabine": self.canvas.create_rectangle(0, 0, 0, 0, fill="#BFEAF0", outline="#39728A", width=1, tags=tags),
+            "cauda": self.canvas.create_polygon(0, 0, 0, 0, 0, 0, fill="#F04D4F", outline="#8C2D32", width=1, tags=tags),
+            "motor_esq": self.canvas.create_rectangle(0, 0, 0, 0, fill="#D67B2D", outline="#80421D", width=1, tags=tags),
+            "motor_dir": self.canvas.create_rectangle(0, 0, 0, 0, fill="#D67B2D", outline="#80421D", width=1, tags=tags),
+        }
+        obstaculos = []
+        for indice in range(7):
+            obstaculos.append({
+                "indice": indice,
+                "tipo": "resgate" if indice == 1 else random.choice(("barco", "helicoptero", "boia", "ilha")),
+                "x": 0.0, "y": float(indice * hud_top / 7 - 40), "vel": random.uniform(2.3, 4.1),
+                "fase": random.uniform(0, math.tau), "resgatado": False,
+                "corpo": self.canvas.create_polygon(0, 0, 0, 0, 0, 0, fill="#101018", outline="#101018", tags=tags),
+                "detalhe": self.canvas.create_polygon(0, 0, 0, 0, 0, 0, fill="#F14C57", outline="", tags=tags),
+                "extra": self.canvas.create_line(0, 0, 0, 0, fill="#F7D94D", width=3, tags=tags),
+                "sombra": self.canvas.create_polygon(0, 0, 0, 0, 0, 0, fill="#243D78", outline="", tags=tags),
+                "acento": self.canvas.create_rectangle(0, 0, 0, 0, fill="#F8F3CF", outline="#1D314F", width=1, tags=tags),
+                "esqui": self.canvas.create_line(0, 0, 0, 0, fill="#1A2630", width=2, tags=tags),
+                "pessoa1": self.canvas.create_oval(0, 0, 0, 0, fill="#F1C596", outline="#593A2A", width=1, state="hidden", tags=tags),
+                "pessoa2": self.canvas.create_oval(0, 0, 0, 0, fill="#C58455", outline="#593A2A", width=1, state="hidden", tags=tags),
+                "boia_resgate": self.canvas.create_oval(0, 0, 0, 0, fill="#F6F0D7", outline="#E04C41", width=3, state="hidden", tags=tags),
+                "boia_sinal": self.canvas.create_oval(0, 0, 0, 0, fill="#F58135", outline="#9D3D1E", width=2, state="hidden", tags=tags),
+                "haste_boia": self.canvas.create_line(0, 0, 0, 0, fill="#8B4A22", width=3, state="hidden", tags=tags),
+                "luz_boia": self.canvas.create_oval(0, 0, 0, 0, fill="#FFE45B", outline="#AD7321", width=1, state="hidden", tags=tags),
+            })
+        margem_objetos = []
+        for indice in range(14):
+            margem_objetos.append({
+                "lado": -1 if indice % 2 == 0 else 1, "y": float(indice * hud_top / 7 - 45),
+                "vel": random.uniform(1.8, 3.4), "tipo": "arvore" if indice % 3 else "casa",
+                "x": random.uniform(larg * 0.06, larg * 0.18) if indice % 2 == 0 else random.uniform(larg * 0.82, larg * 0.94),
+                "corpo": self.canvas.create_rectangle(0, 0, 0, 0, fill="#287841", outline="#17522D", width=2, tags=tags),
+                "topo": self.canvas.create_polygon(0, 0, 0, 0, 0, 0, fill="#72B94B", outline="#287841", width=1, tags=tags),
+            })
+        posto = {
+            "ativo": False, "x": larg * 0.5, "y": -80.0,
+            "corpo": self.canvas.create_rectangle(0, 0, 0, 0, fill="#F7F5D8", outline="#C2B76B", width=2, state="hidden", tags=tags),
+            "faixa1": self.canvas.create_rectangle(0, 0, 0, 0, fill="#F04DA0", outline="", state="hidden", tags=tags),
+            "faixa2": self.canvas.create_rectangle(0, 0, 0, 0, fill="#4BC9E9", outline="", state="hidden", tags=tags),
+            "texto": self.canvas.create_text(0, 0, text="F\nU\nE\nL", font=("Courier New", 9, "bold"), fill="#3141A9", state="hidden", tags=tags),
+        }
+        self.canvas.create_rectangle(0, hud_top, larg, alt, fill="#BDBDC2", outline="#77777C", width=2, tags=tags)
+        painel_x1, painel_x2 = larg * 0.36, larg * 0.64
+        painel_y1, painel_y2 = hud_top + 28, hud_top + 76
+        self.canvas.create_rectangle(painel_x1, painel_y1, painel_x2, painel_y2, fill="#F2F1E2", outline="#171720", width=4, tags=tags)
+        segmentos = []
+        largura_segmento = (painel_x2 - painel_x1 - 42) / 8
+        for indice in range(8):
+            x1 = painel_x1 + 21 + indice * largura_segmento
+            segmentos.append(self.canvas.create_rectangle(x1, painel_y1 + 20, x1 + largura_segmento - 4, painel_y2 - 10, fill="#28323A", outline="", tags=tags))
+        tanque = {
+            "nivel": self.canvas.create_line(painel_x1 + 20, painel_y1 + 13, painel_x2 - 20, painel_y1 + 13, fill="#171720", width=2, tags=tags),
+            "ponteiro": self.canvas.create_polygon(0, 0, 0, 0, 0, 0, fill="#F1C92F", outline="#8F6918", width=1, tags=tags),
+            "texto": self.canvas.create_text(larg / 2, hud_top + 18, text="COMBUSTÍVEL", font=("Courier New", 12, "bold"), fill="#25252A", anchor="s", tags=tags),
+            "estado": self.canvas.create_text(larg / 2, hud_top + 88, text="ROTA SEGURA", font=("Courier New", 11, "bold"), fill="#4B429E", anchor="n", tags=tags),
+            "e": self.canvas.create_text(painel_x1 + 14, painel_y1 + 22, text="E", font=("Courier New", 18, "bold"), fill="#202028", tags=tags),
+            "f": self.canvas.create_text(painel_x2 - 14, painel_y1 + 22, text="F", font=("Courier New", 18, "bold"), fill="#202028", tags=tags),
+            "x1": painel_x1, "x2": painel_x2, "y1": painel_y1, "y2": painel_y2, "segmentos": segmentos,
+        }
+        pontuacao_box = self.canvas.create_rectangle(larg * 0.07, hud_top + 24, larg * 0.28, hud_top + 82, fill="#26344A", outline="#F1D54A", width=3, tags=tags)
+        pontuacao_id = self.canvas.create_text(larg * 0.175, hud_top + 53, text="RESGATES\n0000", font=("Courier New", 17, "bold"), fill="#FFF4A4", anchor="center", tags=tags)
+        cabo_resgate = self.canvas.create_line(0, 0, 0, 0, fill="#F5E8A7", width=2, state="hidden", tags=tags)
+        self._voo_cena = {
+            "larg": larg, "alt": alt, "hud_top": hud_top, "rio_esq": rio_esq, "rio_dir": rio_dir, "margens_rio": margens_rio, "pontos_do_rio": pontos_do_rio, "rio_item": rio_item,
+            "estrada_esq": estrada_esq, "estrada_dir": estrada_dir, "faixa_esq": faixa_esq, "faixa_dir": faixa_dir, "deslocamento_margem": 0.0, "ondas": ondas,
+            "aviao": aviao, "obstaculos": obstaculos, "margem_objetos": margem_objetos, "posto": posto, "tanque": tanque,
+            "aviao_x": larg * 0.5, "aviao_y": hud_top - 145, "aviao_y_base": hud_top - 145, "combustivel": 100.0,
+            "reabastecendo": False, "manobra_ativa": False, "manobra_x": larg * 0.5, "manobra_y": hud_top - 145, "manobra_obstaculo": None, "manobra_inicio": 0.0,
+            "pontuacao": 0, "pontuacao_id": pontuacao_id, "pontuacao_box": pontuacao_box, "cabo_resgate": cabo_resgate, "resgate_ativo": None, "resgate_inicio": 0.0, "resgate_alvo": None,
+            "ultimo_tempo": time.time(),
+        }
+        self._atualizar_cena_voo_pixel(time.time())
+        self._animacao_voo_ativa = True
+        self._animacao_voo_after = self.after(80, self._loop_animacao_voo)
+
+    def _atualizar_cena_voo_pixel(self, agora_ts):
+        """Mantem uma partida demonstrativa, sempre com desvio e abastecimento bem-sucedidos."""
+        cena = self._voo_cena
+        if not cena:
+            return
+        larg = cena["larg"]
+        rio_esq, rio_dir = cena["rio_esq"], cena["rio_dir"]
+        margens_rio = cena["margens_rio"]
+        aviao_y = cena["aviao_y"]
+        dt = min(0.2, max(0.02, agora_ts - cena["ultimo_tempo"]))
+        cena["ultimo_tempo"] = agora_ts
+        cena["combustivel"] = max(0.0, cena["combustivel"] - dt * 1.45)
+        cena["deslocamento_margem"] += dt * 72
+        deslocamento_margem = cena["deslocamento_margem"]
+        self.canvas.coords(cena["rio_item"], *cena["pontos_do_rio"](deslocamento_margem))
+        margem_base_esq, margem_base_dir = margens_rio(cena["hud_top"], deslocamento_margem)
+        self.canvas.coords(cena["estrada_esq"], 0, cena["hud_top"] - 7, margem_base_esq, cena["hud_top"])
+        self.canvas.coords(cena["estrada_dir"], margem_base_dir, cena["hud_top"] - 7, larg, cena["hud_top"])
+        self.canvas.coords(cena["faixa_esq"], 0, cena["hud_top"] - 15, margem_base_esq, cena["hud_top"] - 7)
+        self.canvas.coords(cena["faixa_dir"], margem_base_dir, cena["hud_top"] - 15, larg, cena["hud_top"] - 7)
+        rio_esq, rio_dir = margens_rio(aviao_y, deslocamento_margem)
+        for indice, onda in enumerate(cena["ondas"]):
+            y = ((agora_ts * 105 + indice * 110) % (cena["hud_top"] + 100)) - 50
+            margem_esq, margem_dir = margens_rio(y, deslocamento_margem)
+            self.canvas.coords(onda, margem_esq + 18, y, margem_dir - 18, y)
+
+        # A rota normal se move continuamente nos dois eixos, sem periodos de espera.
+        alvo_x = (rio_esq + rio_dir) / 2 + math.sin(agora_ts * 0.47) * (rio_dir - rio_esq) * 0.22
+        altura_cruzeiro = cena["aviao_y_base"] + math.sin(agora_ts * 0.72) * 78
+        alvo_y = altura_cruzeiro
+        posto = cena["posto"]
+        if cena["combustivel"] < 30 and not posto["ativo"]:
+            posto["ativo"] = True
+            posto["x"] = larg / 2 + random.choice((-1, 1)) * larg * 0.075
+            posto["y"] = -65.0
+        if posto["ativo"]:
+            if cena["reabastecendo"]:
+                posto["y"] = aviao_y - 46
+            else:
+                posto["y"] += 6.6
+            alvo_x = posto["x"]
+
+        obstaculo_proximo = None
+        distancia_proxima = float("inf")
+        bote_resgate = None
+        distancia_resgate = float("inf")
+        for obstaculo in cena["obstaculos"]:
+            obstaculo["y"] += obstaculo["vel"] * dt * 11
+            if obstaculo["y"] > cena["hud_top"] + 70:
+                novo_tipo = "resgate" if random.random() < 0.18 else random.choice(("barco", "helicoptero", "boia", "ilha"))
+                obstaculo.update(tipo=novo_tipo, y=random.uniform(-230, -50), vel=random.uniform(2.3, 4.1), fase=random.uniform(0, math.tau), resgatado=False)
+            margem_esq, margem_dir = margens_rio(obstaculo["y"], deslocamento_margem)
+            obstaculo["x"] = (margem_esq + margem_dir) / 2 + math.sin(agora_ts * (0.5 + obstaculo["vel"] * 0.08) + obstaculo["fase"]) * (margem_dir - margem_esq) * 0.27
+            distancia = abs(obstaculo["y"] - aviao_y)
+            if obstaculo["tipo"] == "resgate" and not obstaculo["resgatado"] and distancia < distancia_resgate:
+                bote_resgate, distancia_resgate = obstaculo, distancia
+            elif distancia < distancia_proxima:
+                obstaculo_proximo, distancia_proxima = obstaculo, distancia
+            self._desenhar_obstaculo_voo_pixel(obstaculo)
+
+        buscando_resgate = not posto["ativo"] and bote_resgate is not None and distancia_resgate < 460
+        if buscando_resgate:
+            cena["resgate_alvo"] = bote_resgate["indice"]
+            cena["manobra_ativa"] = False
+            alvo_x = bote_resgate["x"]
+            alvo_y = min(cena["hud_top"] - 58, bote_resgate["y"] + 96)
+            if abs(bote_resgate["x"] - cena["aviao_x"]) < 70 and abs(bote_resgate["y"] - aviao_y) < 145:
+                bote_resgate["resgatado"] = True
+                cena["pontuacao"] += 100
+                cena["resgate_ativo"] = bote_resgate["indice"]
+                cena["resgate_inicio"] = agora_ts
+                cena["resgate_alvo"] = None
+
+        ameaca_antecipada = not buscando_resgate and not posto["ativo"] and obstaculo_proximo and distancia_proxima < 235
+        if ameaca_antecipada and (not cena["manobra_ativa"] or cena["manobra_obstaculo"] != obstaculo_proximo["indice"]):
+            cena["manobra_ativa"] = True
+            cena["manobra_obstaculo"] = obstaculo_proximo["indice"]
+            cena["manobra_inicio"] = agora_ts
+            if obstaculo_proximo["x"] >= cena["aviao_x"]:
+                cena["manobra_x"] = rio_esq + (rio_dir - rio_esq) * 0.13
+            else:
+                cena["manobra_x"] = rio_esq + (rio_dir - rio_esq) * 0.87
+            if obstaculo_proximo["y"] < aviao_y:
+                cena["manobra_y"] = min(cena["hud_top"] - 32, altura_cruzeiro + 92)
+            else:
+                cena["manobra_y"] = max(int(cena["hud_top"] * 0.48), altura_cruzeiro - 92)
+
+        if cena["manobra_ativa"]:
+            alvo_x, alvo_y = cena["manobra_x"], cena["manobra_y"]
+            obstaculo_da_manobra = next((item for item in cena["obstaculos"] if item["indice"] == cena["manobra_obstaculo"]), None)
+            if (not obstaculo_da_manobra or obstaculo_da_manobra["y"] > aviao_y + 125
+                    or agora_ts - cena["manobra_inicio"] > 5.5):
+                cena["manobra_ativa"] = False
+                cena["manobra_obstaculo"] = None
+        desvio_urgente = cena["manobra_ativa"]
+
+        for objeto_margem in cena["margem_objetos"]:
+            objeto_margem["y"] += objeto_margem["vel"] * dt * 13
+            if objeto_margem["y"] > cena["hud_top"] + 45:
+                objeto_margem["y"] = random.uniform(-180, -35)
+                objeto_margem["vel"] = random.uniform(1.8, 3.4)
+                objeto_margem["tipo"] = "arvore" if random.random() < 0.7 else "casa"
+            self._desenhar_objeto_margem_voo(objeto_margem)
+
+        alvo_x = max(rio_esq + 32, min(rio_dir - 32, alvo_x))
+        cena["aviao_x"] = self._aproximar_valor(cena["aviao_x"], alvo_x, 11.5 if desvio_urgente else 5.5)
+        cena["aviao_y"] = self._aproximar_valor(cena["aviao_y"], alvo_y, 8.0 if desvio_urgente else 3.0)
+        x = cena["aviao_x"]
+        aviao_y = cena["aviao_y"]
+        aviao = cena["aviao"]
+        inclinacao = max(-15, min(15, (alvo_x - x) * 0.13))
+        self.canvas.coords(aviao["sombra"], x - 33, aviao_y + 27, x - 9, aviao_y + 33, x + 34, aviao_y + 27, x + 12, aviao_y + 35, x - 12, aviao_y + 35)
+        self.canvas.tag_lower(aviao["sombra"], aviao["asas"])
+        self.canvas.coords(aviao["asas"], x - 38, aviao_y + 9 + inclinacao, x - 13, aviao_y - 2 + inclinacao * 0.45, x - 9, aviao_y - 14, x + 9, aviao_y - 14, x + 13, aviao_y - 2 - inclinacao * 0.45, x + 38, aviao_y + 9 - inclinacao, x + 13, aviao_y + 16 - inclinacao * 0.3, x - 13, aviao_y + 16 + inclinacao * 0.3)
+        self.canvas.coords(aviao["corpo"], x - 8, aviao_y + 25, x - 8, aviao_y - 24, x, aviao_y - 39, x + 8, aviao_y - 24, x + 8, aviao_y + 25)
+        self.canvas.coords(aviao["cabine"], x - 5, aviao_y - 25, x + 5, aviao_y - 10)
+        self.canvas.coords(aviao["cauda"], x - 8, aviao_y + 17, x - 18, aviao_y + 31, x + 18, aviao_y + 31, x + 8, aviao_y + 17)
+        self.canvas.coords(aviao["motor_esq"], x - 28, aviao_y + 4 + inclinacao * 0.45, x - 15, aviao_y + 14 + inclinacao * 0.25)
+        self.canvas.coords(aviao["motor_dir"], x + 15, aviao_y + 4 - inclinacao * 0.45, x + 28, aviao_y + 14 - inclinacao * 0.25)
+
+        resgate_em_curso = next((item for item in cena["obstaculos"] if item["indice"] == cena["resgate_ativo"]), None)
+        if resgate_em_curso and agora_ts - cena["resgate_inicio"] < 1.8:
+            self.canvas.coords(cena["cabo_resgate"], x, aviao_y + 22, resgate_em_curso["x"], resgate_em_curso["y"] - 10)
+            self.canvas.itemconfig(cena["cabo_resgate"], state="normal")
+        else:
+            self.canvas.itemconfig(cena["cabo_resgate"], state="hidden")
+            if cena["resgate_ativo"] is not None:
+                cena["resgate_ativo"] = None
+        self.canvas.itemconfig(cena["pontuacao_id"], text=f"RESGATES\n{cena['pontuacao']:04d}")
+
+        if posto["ativo"]:
+            px, py = posto["x"], posto["y"]
+            self.canvas.coords(posto["corpo"], px - 20, py - 32, px + 20, py + 32)
+            self.canvas.coords(posto["faixa1"], px - 20, py - 19, px + 20, py - 7)
+            self.canvas.coords(posto["faixa2"], px - 20, py + 7, px + 20, py + 19)
+            self.canvas.coords(posto["texto"], px, py)
+            for item in (posto["corpo"], posto["faixa1"], posto["faixa2"], posto["texto"]):
+                self.canvas.itemconfig(item, state="normal")
+            if abs(px - x) < 26 and abs(py - (aviao_y - 46)) < 33:
+                cena["reabastecendo"] = True
+                cena["combustivel"] = min(100.0, cena["combustivel"] + dt * 48)
+            if cena["reabastecendo"] and cena["combustivel"] >= 99.5:
+                posto["ativo"] = False
+                cena["reabastecendo"] = False
+        else:
+            for item in (posto["corpo"], posto["faixa1"], posto["faixa2"], posto["texto"]):
+                self.canvas.itemconfig(item, state="hidden")
+
+        tanque, combustivel = cena["tanque"], cena["combustivel"]
+        segmentos_ativos = max(0, min(8, math.ceil(combustivel / 12.5)))
+        for indice, segmento in enumerate(tanque["segmentos"]):
+            if indice < segmentos_ativos:
+                cor_segmento = "#5DAF4E" if indice >= 3 else "#F0CA3A"
+                self.canvas.itemconfig(segmento, fill=cor_segmento)
+            else:
+                self.canvas.itemconfig(segmento, fill="#34383C")
+        ponteiro_x = tanque["x1"] + 21 + (tanque["x2"] - tanque["x1"] - 42) * combustivel / 100
+        self.canvas.coords(tanque["ponteiro"], ponteiro_x - 7, tanque["y1"] + 4, ponteiro_x + 7, tanque["y1"] + 4, ponteiro_x, tanque["y1"] + 16)
+        estado = "REABASTECENDO" if cena["reabastecendo"] else "ATENCAO: COMBUSTIVEL" if combustivel < 30 else "ROTA SEGURA"
+        cor = "#ED4A4A" if combustivel < 30 else "#4B429E"
+        self.canvas.itemconfig(tanque["estado"], text=estado, fill=cor)
+
+    def _desenhar_obstaculo_voo_pixel(self, obstaculo):
+        """Formas grandes em pixel art para leitura a distancia."""
+        x, y, tipo = obstaculo["x"], obstaculo["y"], obstaculo["tipo"]
+        corpo, detalhe, extra = obstaculo["corpo"], obstaculo["detalhe"], obstaculo["extra"]
+        sombra, acento, esqui = obstaculo["sombra"], obstaculo["acento"], obstaculo["esqui"]
+        pessoa1, pessoa2 = obstaculo["pessoa1"], obstaculo["pessoa2"]
+        boia_resgate = obstaculo["boia_resgate"]
+        boia_sinal = obstaculo["boia_sinal"]
+        haste_boia, luz_boia = obstaculo["haste_boia"], obstaculo["luz_boia"]
+        self.canvas.tag_lower(sombra, corpo)
+        self.canvas.itemconfig(esqui, state="normal" if tipo == "helicoptero" else "hidden")
+        self.canvas.itemconfig(pessoa1, state="hidden")
+        self.canvas.itemconfig(pessoa2, state="hidden")
+        self.canvas.itemconfig(boia_resgate, state="hidden")
+        self.canvas.itemconfig(boia_sinal, state="hidden")
+        self.canvas.itemconfig(haste_boia, state="hidden")
+        self.canvas.itemconfig(luz_boia, state="hidden")
+        if tipo == "resgate":
+            self.canvas.coords(sombra, x - 55, y + 18, x + 55, y + 18, x + 40, y + 27, x - 40, y + 27)
+            self.canvas.itemconfig(sombra, fill="#294A92")
+            self.canvas.coords(corpo, x - 52, y + 4, x - 37, y - 12, x + 37, y - 12, x + 52, y + 4, x + 35, y + 19, x - 35, y + 19)
+            self.canvas.itemconfig(corpo, fill="#F07A3E", outline="#8A3824")
+            self.canvas.coords(detalhe, x - 39, y + 2, x - 27, y - 7, x + 27, y - 7, x + 39, y + 2, x + 25, y + 10, x - 25, y + 10)
+            self.canvas.itemconfig(detalhe, fill="#F7E9B1")
+            self.canvas.coords(extra, x - 48, y + 15, x + 48, y + 15)
+            self.canvas.coords(acento, x - 5, y - 31, x + 5, y - 20)
+            self.canvas.itemconfig(acento, fill="#E34D45")
+            if not obstaculo["resgatado"]:
+                self.canvas.coords(pessoa1, x - 25, y - 22, x - 11, y - 8)
+                self.canvas.coords(pessoa2, x + 11, y - 22, x + 25, y - 8)
+                self.canvas.coords(boia_resgate, x - 8, y - 7, x + 8, y + 9)
+                self.canvas.itemconfig(pessoa1, state="normal")
+                self.canvas.itemconfig(pessoa2, state="normal")
+                self.canvas.itemconfig(boia_resgate, state="normal")
+        elif tipo == "barco":
+            self.canvas.coords(sombra, x - 43, y + 14, x + 42, y + 14, x + 30, y + 21, x - 30, y + 21)
+            self.canvas.itemconfig(sombra, fill="#294A92")
+            self.canvas.coords(corpo, x - 40, y + 6, x - 29, y - 5, x + 27, y - 5, x + 40, y + 6, x + 26, y + 14, x - 27, y + 14)
+            self.canvas.itemconfig(corpo, fill="#3A2520", outline="#1B1516")
+            self.canvas.coords(detalhe, x - 17, y - 18, x + 12, y - 18, x + 21, y - 5, x - 23, y - 5)
+            self.canvas.itemconfig(detalhe, fill="#F0E9C9")
+            self.canvas.coords(extra, x + 2, y - 31, x + 2, y - 18)
+            self.canvas.coords(acento, x - 10, y - 15, x + 7, y - 7)
+            self.canvas.itemconfig(acento, fill="#72C7E2")
+        elif tipo == "helicoptero":
+            # Perfil completo: fuselagem, cabine, cauda, rotor e esquis.
+            self.canvas.coords(sombra, x - 38, y - 3, x - 8, y - 5, x - 3, y + 3, x - 37, y + 6)
+            self.canvas.itemconfig(sombra, fill="#1D3F36")
+            self.canvas.coords(corpo, x - 9, y - 15, x + 18, y - 15, x + 30, y - 5, x + 22, y + 10, x - 12, y + 10, x - 21, y + 1)
+            self.canvas.itemconfig(corpo, fill="#3D8B59", outline="#173E2A")
+            self.canvas.coords(detalhe, x + 5, y - 12, x + 19, y - 12, x + 24, y - 4, x + 14, y + 4, x + 3, y + 1)
+            self.canvas.itemconfig(detalhe, fill="#9DE2D2")
+            self.canvas.coords(extra, x - 31, y - 27, x + 35, y - 27)
+            self.canvas.coords(acento, x - 42, y - 9, x - 34, y - 1)
+            self.canvas.itemconfig(acento, fill="#E8D454")
+            self.canvas.coords(esqui, x - 10, y + 15, x + 23, y + 15)
+        elif tipo == "ilha":
+            self.canvas.coords(sombra, x - 40, y + 16, x + 40, y + 16, x + 27, y + 23, x - 28, y + 23)
+            self.canvas.itemconfig(sombra, fill="#294A92")
+            self.canvas.coords(corpo, x - 35, y + 12, x - 23, y - 3, x + 20, y - 7, x + 38, y + 9, x + 25, y + 17, x - 27, y + 17)
+            self.canvas.itemconfig(corpo, fill="#D7B65A", outline="#8A6A2C")
+            self.canvas.coords(detalhe, x - 16, y - 24, x, y - 35, x + 16, y - 24, x + 10, y - 7, x - 10, y - 7)
+            self.canvas.itemconfig(detalhe, fill="#2A7A42")
+            self.canvas.coords(extra, x, y - 36, x, y - 8)
+            self.canvas.coords(acento, x - 4, y - 30, x + 4, y - 9)
+            self.canvas.itemconfig(acento, fill="#684426")
+        else:
+            # Marcador nautico: base flutuante, corpo cilindrico, luz e reflexo na agua.
+            self.canvas.coords(sombra, x - 30, y + 19, x + 30, y + 19, x + 20, y + 26, x - 20, y + 26)
+            self.canvas.itemconfig(sombra, fill="#294A92")
+            self.canvas.coords(boia_sinal, x - 18, y - 2, x + 18, y + 22)
+            self.canvas.itemconfig(boia_sinal, state="normal")
+            self.canvas.coords(corpo, x - 11, y - 16, x + 11, y - 16, x + 14, y - 3, x + 11, y + 16, x - 11, y + 16, x - 14, y - 3)
+            self.canvas.itemconfig(corpo, fill="#F8F5D8", outline="#9D3D1E")
+            self.canvas.coords(detalhe, x - 13, y - 3, x + 13, y - 3, x + 13, y + 6, x - 13, y + 6)
+            self.canvas.itemconfig(detalhe, fill="#E65343")
+            self.canvas.coords(acento, x - 4, y - 14, x + 4, y - 5)
+            self.canvas.itemconfig(acento, fill="#2F84B3")
+            self.canvas.coords(haste_boia, x, y - 26, x, y - 16)
+            self.canvas.coords(luz_boia, x - 5, y - 32, x + 5, y - 22)
+            self.canvas.coords(extra, x - 32, y + 27, x + 32, y + 27, x - 20, y + 32, x + 20, y + 32)
+            self.canvas.itemconfig(haste_boia, state="normal")
+            self.canvas.itemconfig(luz_boia, state="normal")
+
+    def _desenhar_objeto_margem_voo(self, objeto):
+        """Desenha referencias laterais para reforcar a sensacao de deslocamento."""
+        x, y = objeto["x"], objeto["y"]
+        if objeto["tipo"] == "casa":
+            self.canvas.coords(objeto["corpo"], x - 16, y - 10, x + 16, y + 16)
+            self.canvas.itemconfig(objeto["corpo"], fill="#D9C486", outline="#6A5734")
+            self.canvas.coords(objeto["topo"], x - 21, y - 10, x, y - 28, x + 21, y - 10)
+            self.canvas.itemconfig(objeto["topo"], fill="#D95147", outline="#7B342F")
+        else:
+            self.canvas.coords(objeto["corpo"], x - 5, y - 7, x + 5, y + 21)
+            self.canvas.itemconfig(objeto["corpo"], fill="#6C4728", outline="#4A2E1B")
+            self.canvas.coords(objeto["topo"], x, y - 31, x - 20, y - 5, x - 10, y + 1, x, y - 11, x + 10, y + 1, x + 20, y - 5)
+            self.canvas.itemconfig(objeto["topo"], fill="#247A3D", outline="#15522A")
+
+    def _loop_animacao_voo(self):
+        if not self._animacao_voo_ativa or not self._voo_cena:
+            return
+        try:
+            if not self.winfo_exists():
+                return
+        except tk.TclError:
+            return
+        self._atualizar_cena_voo_pixel(time.time())
+        self._animacao_voo_after = self.after(80, self._loop_animacao_voo)
+
+    def _parar_animacao_voo(self):
+        self._animacao_voo_ativa = False
+        if self._animacao_voo_after is not None:
+            try:
+                self.after_cancel(self._animacao_voo_after)
+            except Exception:
+                pass
+        self._animacao_voo_after = None
+        self._voo_cena = {}
+
     def _desenhar_painel_central(self, larg, alt):
         """Painel único que contém relógio + todas as informações do evento."""
         espaco_info = self.config_dados.get("espacos", {}).get(self.espaco_atual, {})
         cor_destaque = espaco_info.get("cor_destaque", "#00BCD4")
+        cores_texto = self.config_dados.get("cores_texto", {})
+        cor_evento = cores_texto.get("evento", "#FB1874")
+        cor_data = cores_texto.get("data", "#FB1874")
+        cor_professores = cores_texto.get("professores", "#FB1874")
+        cor_mensagem = cores_texto.get("mensagem", "#E6EEF5")
         escala_texto = min(1.22, max(1.08, larg / 1600))
 
         # Painel: 78% da largura, 78% da altura, centralizado
@@ -2500,25 +3626,34 @@ class DescansoTela(tk.Tk):
                     print(f"[AVISO] Logo: {e}")
 
         # ── RELÓGIO ─────────────────────────────────────────────────────
-        tam_clock = max(56, min(84, int(alt * 0.095 * escala_texto)))
-        y_clock = py + int(painel_alt * 0.20)
+        tam_clock_padrao = max(56, min(84, int(alt * 0.095 * escala_texto)))
+        y_clock_padrao = py + int(painel_alt * 0.20)
+        relogio_compacto = self.config_dados.get("posicao_relogio", "Central (grande)") == "Inferior direito (compacto)"
+        if relogio_compacto:
+            tam_clock = max(24, min(34, int(alt * 0.036)))
+            x_clock = larg - max(105, int(larg * 0.09))
+            y_clock = alt - max(88, int(alt * 0.10))
+        else:
+            tam_clock = tam_clock_padrao
+            x_clock = cx
+            y_clock = y_clock_padrao
 
-        self.canvas.create_text(cx+6, y_clock+6,
+        self.canvas.create_text(x_clock+6, y_clock+6,
             text="00:00:00",
             font=("Segoe UI", tam_clock, "bold"),
-            fill="#000000", anchor="center", tags="clock_shadow")
-        self.canvas.create_text(cx+2, y_clock+2,
+            fill="#000000", anchor="center", tags=("clock_shadow", "intermitencia_hora"))
+        self.canvas.create_text(x_clock+2, y_clock+2,
             text="00:00:00",
             font=("Segoe UI", tam_clock, "bold"),
-            fill="#2ECC71", anchor="center", tags="clock_glow")
-        self.canvas.create_text(cx, y_clock,
+            fill="#2ECC71", anchor="center", tags=("clock_glow", "intermitencia_hora"))
+        self.canvas.create_text(x_clock, y_clock,
             text="00:00:00",
             font=("Segoe UI", tam_clock, "bold"),
-            fill="#7DFF9B", anchor="center", tags="clock_main")
+            fill="#7DFF9B", anchor="center", tags=("clock_main", "intermitencia_hora"))
 
         # ── INFORMAÇÕES ─────────────────────────────────────────────────
         # Começa abaixo do centro do relógio + espaço proporcional ao tamanho da fonte
-        y = y_clock + int(tam_clock * 0.82)
+        y = y_clock_padrao + int(tam_clock_padrao * 0.82)
         tam_evento = int(30 * escala_texto)
         tam_espaco = int(22 * escala_texto)
         tam_data = int(18 * escala_texto)
@@ -2532,24 +3667,24 @@ class DescansoTela(tk.Tk):
         # Nome do evento
         evento = self.config_dados.get("evento", "Evento CIEBP")
         self.canvas.create_text(cx+2, y+2, text=evento.upper(),
-            font=("Segoe UI", tam_evento, "bold"), fill="#000000", anchor="n")
+            font=("Segoe UI", tam_evento, "bold"), fill="#000000", anchor="n", tags="intermitencia_evento")
         self.canvas.create_text(cx, y, text=evento.upper(),
-            font=("Segoe UI", tam_evento, "bold"), fill="#FB1874", anchor="n")
+            font=("Segoe UI", tam_evento, "bold"), fill=cor_evento, anchor="n", tags="intermitencia_evento")
         y += int(tam_evento * 1.5)
 
         # Nome do espaço
         self.canvas.create_text(cx+2, y+2, text=self.espaco_atual,
-            font=("Segoe UI", tam_espaco, "bold"), fill="#000000", anchor="n")
+            font=("Segoe UI", tam_espaco, "bold"), fill="#000000", anchor="n", tags="intermitencia_legenda")
         self.canvas.create_text(cx, y, text=self.espaco_atual,
-            font=("Segoe UI", tam_espaco, "bold"), fill=cor_destaque, anchor="n")
+            font=("Segoe UI", tam_espaco, "bold"), fill=cor_destaque, anchor="n", tags="intermitencia_legenda")
         y += int(tam_espaco * 1.45)
 
         # Data
         data = self.config_dados.get("data", datetime.now().strftime("%d/%m/%Y"))
         self.canvas.create_text(cx+1, y+1, text=f"\U0001f4c5  {data}",
-            font=("Segoe UI", tam_data, "bold"), fill="#000000", anchor="n")
+            font=("Segoe UI", tam_data, "bold"), fill="#000000", anchor="n", tags="intermitencia_data")
         self.canvas.create_text(cx, y, text=f"\U0001f4c5  {data}",
-            font=("Segoe UI", tam_data, "bold"), fill="#FB1874", anchor="n")
+            font=("Segoe UI", tam_data, "bold"), fill=cor_data, anchor="n", tags="intermitencia_data")
         y += int(tam_data * 1.7)
 
         # Professores
@@ -2572,13 +3707,15 @@ class DescansoTela(tk.Tk):
                     font=("Segoe UI", tam_prof, "bold"),
                     fill="#000000",
                     anchor="n",
+                    tags="intermitencia_professores",
                 )
                 self.canvas.create_text(
                     cx, y,
                     text=texto_linha,
                     font=("Segoe UI", tam_prof, "bold"),
-                    fill="#FB1874",
+                    fill=cor_professores,
                     anchor="n",
+                    tags="intermitencia_professores",
                 )
                 y += altura_linha
                 if indice < len(linhas_prof) - 1:
@@ -2596,10 +3733,10 @@ class DescansoTela(tk.Tk):
         mensagem = self.config_dados.get("mensagem_boas_vindas", "Bem-vindo(a) ao CIEBP!")
         sombra_msg = self.canvas.create_text(cx+2, y+2, text=mensagem,
             font=("Segoe UI", tam_msg), fill="#000000",
-            anchor="n", width=painel_larg - 50)
+            anchor="n", width=painel_larg - 50, tags="intermitencia_mensagem")
         texto_msg_id = self.canvas.create_text(cx, y, text=mensagem,
-            font=("Segoe UI", tam_msg), fill="#E6EEF5",
-            anchor="n", width=painel_larg - 50, tags="texto_mensagem")
+            font=("Segoe UI", tam_msg), fill=cor_mensagem,
+            anchor="n", width=painel_larg - 50, tags=("texto_mensagem", "intermitencia_mensagem"))
 
     def _desenhar_rodape(self, larg, alt):
         """Desenha o rodapé com o nome institucional."""
@@ -3198,6 +4335,53 @@ class DescansoTela(tk.Tk):
             self._banner_agendado_after = None
         self.canvas.delete("banner_agendado")
 
+    def _periodo_intermitencia(self, valor):
+        """Converte a opcao do formulario em segundos; zero mantem o texto fixo."""
+        periodos = {
+            "1 segundo": 1, "2 segundos": 2, "5 segundos": 5,
+            "10 segundos": 10, "30 segundos": 30,
+            "1 minuto": 60, "2 minutos": 120, "5 minutos": 300,
+        }
+        return periodos.get(str(valor), 0)
+
+    def _atualizar_intermitencias_texto(self, agora_ts):
+        """Mostra ou oculta grupos de texto conforme os intervalos configurados."""
+        configuracoes = self.config_dados.get("intermitencia_textos", {})
+        grupos = {
+            "hora": "intermitencia_hora",
+            "evento": "intermitencia_evento",
+            "legenda": "intermitencia_legenda",
+            "data": "intermitencia_data",
+            "professores": "intermitencia_professores",
+            "mensagem": "intermitencia_mensagem",
+        }
+        for chave, tag in grupos.items():
+            opcao = configuracoes.get(chave, "Desligado")
+            periodo = self._periodo_intermitencia(opcao)
+            visivel = opcao != "Ocultar" and (periodo == 0 or int(agora_ts / periodo) % 2 == 0)
+            try:
+                self.canvas.itemconfig(tag, state="normal" if visivel else "hidden")
+            except tk.TclError:
+                pass
+
+    def _atualizar_opacidades_texto(self):
+        """Aplica intensidade visual por meio de tramas do Canvas."""
+        opacidades = self.config_dados.get("opacidade_textos", {})
+        grupos = {
+            "hora": "intermitencia_hora",
+            "evento": "intermitencia_evento",
+            "legenda": "intermitencia_legenda",
+            "data": "intermitencia_data",
+            "professores": "intermitencia_professores",
+            "mensagem": "intermitencia_mensagem",
+        }
+        tramas = {"100%": "", "75%": "gray75", "50%": "gray50", "25%": "gray25"}
+        for chave, tag in grupos.items():
+            try:
+                self.canvas.itemconfig(tag, stipple=tramas.get(opacidades.get(chave, "100%"), ""))
+            except tk.TclError:
+                pass
+
     def _loop_relogio(self):
         """Atualiza o relógio a cada 1 segundo via itemconfig (sem recriar o canvas)."""
         agora_dt = datetime.now()
@@ -3208,6 +4392,8 @@ class DescansoTela(tk.Tk):
             self.canvas.itemconfig("clock_shadow", text=agora)
         except Exception:
             pass
+        self._atualizar_intermitencias_texto(time.time())
+        self._atualizar_opacidades_texto()
         self._atualizar_alerta_horario(agora_dt)
         self._verificar_agendamentos_banner(agora_dt)
         self.after(1000, self._loop_relogio)
@@ -3453,6 +4639,8 @@ class DescansoTela(tk.Tk):
         self._parar_animacao_alerta()
         self._parar_banner_agendado()
         self._parar_animacao_pescador()
+        self._parar_animacao_blocos()
+        self._parar_animacao_voo()
         self._parar_radio()
         self.destroy()
 
