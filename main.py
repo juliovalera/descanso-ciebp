@@ -3250,7 +3250,13 @@ class DescansoTela(tk.Tk):
                 "esqui": self.canvas.create_line(0, 0, 0, 0, fill="#1A2630", width=2, tags=tags),
                 "pessoa1": self.canvas.create_oval(0, 0, 0, 0, fill="#F1C596", outline="#593A2A", width=1, state="hidden", tags=tags),
                 "pessoa2": self.canvas.create_oval(0, 0, 0, 0, fill="#C58455", outline="#593A2A", width=1, state="hidden", tags=tags),
+                "pessoa1_corpo": self.canvas.create_polygon(0, 0, 0, 0, 0, 0, fill="#F6CF45", outline="#573E1B", width=1, state="hidden", tags=tags),
+                "pessoa2_corpo": self.canvas.create_polygon(0, 0, 0, 0, 0, 0, fill="#49B7DD", outline="#1E4A62", width=1, state="hidden", tags=tags),
+                "pessoa1_bracos": self.canvas.create_line(0, 0, 0, 0, fill="#F1C596", width=3, state="hidden", tags=tags),
+                "pessoa2_bracos": self.canvas.create_line(0, 0, 0, 0, fill="#C58455", width=3, state="hidden", tags=tags),
                 "boia_resgate": self.canvas.create_oval(0, 0, 0, 0, fill="#F6F0D7", outline="#E04C41", width=3, state="hidden", tags=tags),
+                "aura_resgate": self.canvas.create_oval(0, 0, 0, 0, outline="#FFE76A", width=3, state="hidden", tags=tags),
+                "placa_resgate": self.canvas.create_text(0, 0, text="RESGATE", font=("Courier New", 11, "bold"), fill="#FFF5AE", state="hidden", tags=tags),
                 "boia_sinal": self.canvas.create_oval(0, 0, 0, 0, fill="#F58135", outline="#9D3D1E", width=2, state="hidden", tags=tags),
                 "haste_boia": self.canvas.create_line(0, 0, 0, 0, fill="#8B4A22", width=3, state="hidden", tags=tags),
                 "luz_boia": self.canvas.create_oval(0, 0, 0, 0, fill="#FFE45B", outline="#AD7321", width=1, state="hidden", tags=tags),
@@ -3291,14 +3297,15 @@ class DescansoTela(tk.Tk):
         }
         pontuacao_box = self.canvas.create_rectangle(larg * 0.07, hud_top + 24, larg * 0.28, hud_top + 82, fill="#26344A", outline="#F1D54A", width=3, tags=tags)
         pontuacao_id = self.canvas.create_text(larg * 0.175, hud_top + 53, text="RESGATES\n0000", font=("Courier New", 17, "bold"), fill="#FFF4A4", anchor="center", tags=tags)
-        cabo_resgate = self.canvas.create_line(0, 0, 0, 0, fill="#F5E8A7", width=2, state="hidden", tags=tags)
+        cabo_resgate_sombra = self.canvas.create_line(0, 0, 0, 0, fill="#3A2B35", width=6, state="hidden", tags=tags)
+        cabo_resgate = self.canvas.create_line(0, 0, 0, 0, fill="#FFF1A5", width=3, state="hidden", tags=tags)
         self._voo_cena = {
             "larg": larg, "alt": alt, "hud_top": hud_top, "rio_esq": rio_esq, "rio_dir": rio_dir, "margens_rio": margens_rio, "pontos_do_rio": pontos_do_rio, "rio_item": rio_item,
             "estrada_esq": estrada_esq, "estrada_dir": estrada_dir, "faixa_esq": faixa_esq, "faixa_dir": faixa_dir, "deslocamento_margem": 0.0, "ondas": ondas,
             "aviao": aviao, "obstaculos": obstaculos, "margem_objetos": margem_objetos, "posto": posto, "tanque": tanque,
             "aviao_x": larg * 0.5, "aviao_y": hud_top - 145, "aviao_y_base": hud_top - 145, "combustivel": 100.0,
             "reabastecendo": False, "manobra_ativa": False, "manobra_x": larg * 0.5, "manobra_y": hud_top - 145, "manobra_obstaculo": None, "manobra_inicio": 0.0,
-            "pontuacao": 0, "pontuacao_id": pontuacao_id, "pontuacao_box": pontuacao_box, "cabo_resgate": cabo_resgate, "resgate_ativo": None, "resgate_inicio": 0.0, "resgate_alvo": None,
+            "pontuacao": 0, "pontuacao_id": pontuacao_id, "pontuacao_box": pontuacao_box, "cabo_resgate": cabo_resgate, "cabo_resgate_sombra": cabo_resgate_sombra, "resgate_ativo": None, "resgate_inicio": 0.0, "resgate_alvo": None,
             "ultimo_tempo": time.time(),
         }
         self._atualizar_cena_voo_pixel(time.time())
@@ -3352,8 +3359,10 @@ class DescansoTela(tk.Tk):
         bote_resgate = None
         distancia_resgate = float("inf")
         for obstaculo in cena["obstaculos"]:
-            obstaculo["y"] += obstaculo["vel"] * dt * 11
-            if obstaculo["y"] > cena["hud_top"] + 70:
+            resgate_em_curso = cena.get("resgate_ativo") == obstaculo["indice"]
+            velocidade_vertical = 1.4 if resgate_em_curso else 11
+            obstaculo["y"] += obstaculo["vel"] * dt * velocidade_vertical
+            if not resgate_em_curso and obstaculo["y"] > cena["hud_top"] + 70:
                 novo_tipo = "resgate" if random.random() < 0.18 else random.choice(("barco", "helicoptero", "boia", "ilha"))
                 obstaculo.update(tipo=novo_tipo, y=random.uniform(-230, -50), vel=random.uniform(2.3, 4.1), fase=random.uniform(0, math.tau), resgatado=False)
             margem_esq, margem_dir = margens_rio(obstaculo["y"], deslocamento_margem)
@@ -3365,13 +3374,16 @@ class DescansoTela(tk.Tk):
                 obstaculo_proximo, distancia_proxima = obstaculo, distancia
             self._desenhar_obstaculo_voo_pixel(obstaculo)
 
-        buscando_resgate = not posto["ativo"] and bote_resgate is not None and distancia_resgate < 460
+        buscando_resgate = (cena["resgate_ativo"] is None and not posto["ativo"]
+                            and bote_resgate is not None and distancia_resgate < 460)
         if buscando_resgate:
             cena["resgate_alvo"] = bote_resgate["indice"]
             cena["manobra_ativa"] = False
             alvo_x = bote_resgate["x"]
-            alvo_y = min(cena["hud_top"] - 58, bote_resgate["y"] + 96)
-            if abs(bote_resgate["x"] - cena["aviao_x"]) < 70 and abs(bote_resgate["y"] - aviao_y) < 145:
+            # A aeronave paira acima do bote, deixando o içamento compreensível.
+            alvo_y = max(95, min(cena["hud_top"] - 150, bote_resgate["y"] - 118))
+            if (abs(bote_resgate["x"] - cena["aviao_x"]) < 55
+                    and 70 < bote_resgate["y"] - aviao_y < 165):
                 bote_resgate["resgatado"] = True
                 cena["pontuacao"] += 100
                 cena["resgate_ativo"] = bote_resgate["indice"]
@@ -3426,11 +3438,19 @@ class DescansoTela(tk.Tk):
         self.canvas.coords(aviao["motor_dir"], x + 15, aviao_y + 4 - inclinacao * 0.45, x + 28, aviao_y + 14 - inclinacao * 0.25)
 
         resgate_em_curso = next((item for item in cena["obstaculos"] if item["indice"] == cena["resgate_ativo"]), None)
-        if resgate_em_curso and agora_ts - cena["resgate_inicio"] < 1.8:
-            self.canvas.coords(cena["cabo_resgate"], x, aviao_y + 22, resgate_em_curso["x"], resgate_em_curso["y"] - 10)
-            self.canvas.itemconfig(cena["cabo_resgate"], state="normal")
+        if resgate_em_curso and agora_ts - cena["resgate_inicio"] < 4.2:
+            meio_x = (x + resgate_em_curso["x"]) / 2
+            meio_y = (aviao_y + 26 + resgate_em_curso["y"] - 24) / 2 + 12
+            pontos_cabo = (x, aviao_y + 25, meio_x, meio_y, resgate_em_curso["x"], resgate_em_curso["y"] - 18)
+            self.canvas.coords(cena["cabo_resgate_sombra"], *pontos_cabo)
+            self.canvas.coords(cena["cabo_resgate"], *pontos_cabo)
+            self.canvas.itemconfig(cena["cabo_resgate_sombra"], state="normal", smooth=True)
+            self.canvas.itemconfig(cena["cabo_resgate"], state="normal", smooth=True)
+            self.canvas.tag_raise(cena["cabo_resgate_sombra"])
+            self.canvas.tag_raise(cena["cabo_resgate"])
         else:
             self.canvas.itemconfig(cena["cabo_resgate"], state="hidden")
+            self.canvas.itemconfig(cena["cabo_resgate_sombra"], state="hidden")
             if cena["resgate_ativo"] is not None:
                 cena["resgate_ativo"] = None
         self.canvas.itemconfig(cena["pontuacao_id"], text=f"RESGATES\n{cena['pontuacao']:04d}")
@@ -3473,34 +3493,73 @@ class DescansoTela(tk.Tk):
         corpo, detalhe, extra = obstaculo["corpo"], obstaculo["detalhe"], obstaculo["extra"]
         sombra, acento, esqui = obstaculo["sombra"], obstaculo["acento"], obstaculo["esqui"]
         pessoa1, pessoa2 = obstaculo["pessoa1"], obstaculo["pessoa2"]
+        pessoa1_corpo, pessoa2_corpo = obstaculo["pessoa1_corpo"], obstaculo["pessoa2_corpo"]
+        pessoa1_bracos, pessoa2_bracos = obstaculo["pessoa1_bracos"], obstaculo["pessoa2_bracos"]
         boia_resgate = obstaculo["boia_resgate"]
+        aura_resgate, placa_resgate = obstaculo["aura_resgate"], obstaculo["placa_resgate"]
         boia_sinal = obstaculo["boia_sinal"]
         haste_boia, luz_boia = obstaculo["haste_boia"], obstaculo["luz_boia"]
         self.canvas.tag_lower(sombra, corpo)
         self.canvas.itemconfig(esqui, state="normal" if tipo == "helicoptero" else "hidden")
         self.canvas.itemconfig(pessoa1, state="hidden")
         self.canvas.itemconfig(pessoa2, state="hidden")
+        self.canvas.itemconfig(pessoa1_corpo, state="hidden")
+        self.canvas.itemconfig(pessoa2_corpo, state="hidden")
+        self.canvas.itemconfig(pessoa1_bracos, state="hidden")
+        self.canvas.itemconfig(pessoa2_bracos, state="hidden")
         self.canvas.itemconfig(boia_resgate, state="hidden")
+        self.canvas.itemconfig(aura_resgate, state="hidden")
+        self.canvas.itemconfig(placa_resgate, state="hidden")
         self.canvas.itemconfig(boia_sinal, state="hidden")
         self.canvas.itemconfig(haste_boia, state="hidden")
         self.canvas.itemconfig(luz_boia, state="hidden")
         if tipo == "resgate":
-            self.canvas.coords(sombra, x - 55, y + 18, x + 55, y + 18, x + 40, y + 27, x - 40, y + 27)
+            # Bote de resgate grande, com dois ocupantes identificáveis a distância.
+            self.canvas.coords(sombra, x - 68, y + 22, x + 68, y + 22, x + 49, y + 31, x - 49, y + 31)
             self.canvas.itemconfig(sombra, fill="#294A92")
-            self.canvas.coords(corpo, x - 52, y + 4, x - 37, y - 12, x + 37, y - 12, x + 52, y + 4, x + 35, y + 19, x - 35, y + 19)
-            self.canvas.itemconfig(corpo, fill="#F07A3E", outline="#8A3824")
-            self.canvas.coords(detalhe, x - 39, y + 2, x - 27, y - 7, x + 27, y - 7, x + 39, y + 2, x + 25, y + 10, x - 25, y + 10)
-            self.canvas.itemconfig(detalhe, fill="#F7E9B1")
-            self.canvas.coords(extra, x - 48, y + 15, x + 48, y + 15)
-            self.canvas.coords(acento, x - 5, y - 31, x + 5, y - 20)
-            self.canvas.itemconfig(acento, fill="#E34D45")
-            if not obstaculo["resgatado"]:
-                self.canvas.coords(pessoa1, x - 25, y - 22, x - 11, y - 8)
-                self.canvas.coords(pessoa2, x + 11, y - 22, x + 25, y - 8)
-                self.canvas.coords(boia_resgate, x - 8, y - 7, x + 8, y + 9)
-                self.canvas.itemconfig(pessoa1, state="normal")
-                self.canvas.itemconfig(pessoa2, state="normal")
-                self.canvas.itemconfig(boia_resgate, state="normal")
+            self.canvas.coords(corpo, x - 64, y + 4, x - 47, y - 15, x + 47, y - 15, x + 64, y + 4, x + 43, y + 23, x - 43, y + 23)
+            self.canvas.itemconfig(corpo, fill="#F06F3E", outline="#7A3021")
+            self.canvas.coords(detalhe, x - 47, y + 1, x - 32, y - 10, x + 32, y - 10, x + 47, y + 1, x + 30, y + 12, x - 30, y + 12)
+            self.canvas.itemconfig(detalhe, fill="#FFF1BF")
+            self.canvas.coords(extra, x - 58, y + 18, x + 58, y + 18)
+            self.canvas.coords(acento, x - 7, y - 39, x + 7, y - 24)
+            self.canvas.itemconfig(acento, fill="#E43E3E")
+            self.canvas.coords(boia_resgate, x - 12, y - 2, x + 12, y + 22)
+            self.canvas.itemconfig(boia_resgate, state="normal")
+            self.canvas.coords(aura_resgate, x - 78, y - 50, x + 78, y + 38)
+            self.canvas.itemconfig(aura_resgate, state="normal", outline="#FFE76A")
+            self.canvas.coords(placa_resgate, x, y - 58)
+            self.canvas.itemconfig(placa_resgate, state="normal", text="RESGATE")
+
+            def desenhar_pessoa(cabeca, tronco, bracos, px, py, cor_colete):
+                self.canvas.coords(cabeca, px - 10, py - 27, px + 10, py - 7)
+                self.canvas.coords(tronco, px - 12, py - 5, px + 12, py - 5, px + 10, py + 17, px - 10, py + 17)
+                self.canvas.coords(bracos, px - 16, py + 1, px, py + 8, px + 16, py + 1)
+                self.canvas.itemconfig(tronco, state="normal", fill=cor_colete)
+                self.canvas.itemconfig(cabeca, state="normal")
+                self.canvas.itemconfig(bracos, state="normal")
+
+            cena = self._voo_cena or {}
+            em_resgate = cena.get("resgate_ativo") == obstaculo["indice"]
+            if em_resgate:
+                progresso = min(1.0, max(0.0, (time.time() - cena.get("resgate_inicio", time.time())) / 4.0))
+                destino_y = cena.get("aviao_y", y - 120) + 31
+                destino_x = cena.get("aviao_x", x)
+                for indice, (cabeca, tronco, bracos, inicio_x, cor_colete, atraso) in enumerate((
+                    (pessoa1, pessoa1_corpo, pessoa1_bracos, x - 25, "#F6CF45", 0.00),
+                    (pessoa2, pessoa2_corpo, pessoa2_bracos, x + 25, "#49B7DD", 0.42),
+                )):
+                    subida = min(1.0, max(0.0, (progresso - atraso) / 0.46))
+                    if subida < 1.0:
+                        px = inicio_x + (destino_x - inicio_x) * subida
+                        py = (y - 20) + (destino_y - (y - 20)) * subida
+                        desenhar_pessoa(cabeca, tronco, bracos, px, py, cor_colete)
+                self.canvas.itemconfig(placa_resgate, text="RESGATE EM CURSO")
+                for item in (aura_resgate, placa_resgate, pessoa1, pessoa2, pessoa1_corpo, pessoa2_corpo, pessoa1_bracos, pessoa2_bracos):
+                    self.canvas.tag_raise(item)
+            elif not obstaculo["resgatado"]:
+                desenhar_pessoa(pessoa1, pessoa1_corpo, pessoa1_bracos, x - 25, y - 5, "#F6CF45")
+                desenhar_pessoa(pessoa2, pessoa2_corpo, pessoa2_bracos, x + 25, y - 5, "#49B7DD")
         elif tipo == "barco":
             self.canvas.coords(sombra, x - 43, y + 14, x + 42, y + 14, x + 30, y + 21, x - 30, y + 21)
             self.canvas.itemconfig(sombra, fill="#294A92")
@@ -3649,9 +3708,9 @@ class DescansoTela(tk.Tk):
         relogio_compacto = self.config_dados.get("posicao_relogio", "Central (grande)") == "Inferior direito (compacto)"
         if relogio_compacto:
             # Ainda discreto, mas com leitura confortavel em projetores e TVs.
-            tam_clock = max(52, min(78, int(alt * 0.070)))
-            x_clock = larg - max(210, int(larg * 0.160))
-            y_clock = alt - max(70, int(alt * 0.085))
+            tam_clock = max(64, min(92, int(alt * 0.083)))
+            x_clock = larg - max(245, int(larg * 0.190))
+            y_clock = alt - max(60, int(alt * 0.075))
         else:
             tam_clock = tam_clock_padrao
             x_clock = cx
