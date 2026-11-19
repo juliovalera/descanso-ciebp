@@ -3305,7 +3305,7 @@ class DescansoTela(tk.Tk):
             "aviao": aviao, "obstaculos": obstaculos, "margem_objetos": margem_objetos, "posto": posto, "tanque": tanque,
             "aviao_x": larg * 0.5, "aviao_y": hud_top - 145, "aviao_y_base": hud_top - 145, "combustivel": 100.0,
             "reabastecendo": False, "manobra_ativa": False, "manobra_x": larg * 0.5, "manobra_y": hud_top - 145, "manobra_obstaculo": None, "manobra_inicio": 0.0,
-            "pontuacao": 0, "pontuacao_id": pontuacao_id, "pontuacao_box": pontuacao_box, "cabo_resgate": cabo_resgate, "cabo_resgate_sombra": cabo_resgate_sombra, "resgate_ativo": None, "resgate_inicio": 0.0, "resgate_alvo": None,
+            "pontuacao": 0, "pontuacao_id": pontuacao_id, "pontuacao_box": pontuacao_box, "cabo_resgate": cabo_resgate, "cabo_resgate_sombra": cabo_resgate_sombra, "resgate_ativo": None, "resgate_inicio": 0.0, "resgate_alvo": None, "proximo_resgate_ts": time.time(),
             "ultimo_tempo": time.time(),
         }
         self._atualizar_cena_voo_pixel(time.time())
@@ -3358,12 +3358,29 @@ class DescansoTela(tk.Tk):
         distancia_proxima = float("inf")
         bote_resgate = None
         distancia_resgate = float("inf")
+
+        # O ciclo de resgate nao depende de sorte: sempre ha um proximo bote.
+        resgates_pendentes = [item for item in cena["obstaculos"] if item["tipo"] == "resgate" and not item["resgatado"]]
+        if (cena["resgate_ativo"] is None and not resgates_pendentes
+                and agora_ts >= cena.get("proximo_resgate_ts", agora_ts)):
+            candidato = next((item for item in cena["obstaculos"] if item["tipo"] == "resgate"), None)
+            if candidato is None:
+                candidato = min(cena["obstaculos"], key=lambda item: item["y"])
+            candidato.update(
+                tipo="resgate",
+                y=random.uniform(cena["hud_top"] * 0.10, cena["hud_top"] * 0.22),
+                vel=random.uniform(3.5, 4.3),
+                fase=random.uniform(0, math.tau),
+                resgatado=False,
+            )
+            cena["proximo_resgate_ts"] = float("inf")
+
         for obstaculo in cena["obstaculos"]:
             resgate_em_curso = cena.get("resgate_ativo") == obstaculo["indice"]
             velocidade_vertical = 1.4 if resgate_em_curso else 11
             obstaculo["y"] += obstaculo["vel"] * dt * velocidade_vertical
             if not resgate_em_curso and obstaculo["y"] > cena["hud_top"] + 70:
-                novo_tipo = "resgate" if random.random() < 0.18 else random.choice(("barco", "helicoptero", "boia", "ilha"))
+                novo_tipo = random.choice(("barco", "helicoptero", "boia", "ilha"))
                 obstaculo.update(tipo=novo_tipo, y=random.uniform(-230, -50), vel=random.uniform(2.3, 4.1), fase=random.uniform(0, math.tau), resgatado=False)
             margem_esq, margem_dir = margens_rio(obstaculo["y"], deslocamento_margem)
             obstaculo["x"] = (margem_esq + margem_dir) / 2 + math.sin(agora_ts * (0.5 + obstaculo["vel"] * 0.08) + obstaculo["fase"]) * (margem_dir - margem_esq) * 0.27
@@ -3453,6 +3470,7 @@ class DescansoTela(tk.Tk):
             self.canvas.itemconfig(cena["cabo_resgate_sombra"], state="hidden")
             if cena["resgate_ativo"] is not None:
                 cena["resgate_ativo"] = None
+                cena["proximo_resgate_ts"] = agora_ts + 2.5
         self.canvas.itemconfig(cena["pontuacao_id"], text=f"RESGATES\n{cena['pontuacao']:04d}")
 
         if posto["ativo"]:
