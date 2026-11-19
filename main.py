@@ -3457,14 +3457,23 @@ class DescansoTela(tk.Tk):
         for indice in range(8):
             x1 = painel_x1 + 21 + indice * largura_segmento
             segmentos.append(self.canvas.create_rectangle(x1, painel_y1 + 20, x1 + largura_segmento - 4, painel_y2 - 10, fill="#28323A", outline="", tags=tags))
+        # Ícone de bomba de combustível em pixel art, ao lado do título do painel.
+        icone_x, icone_y = larg / 2 - 104, hud_top - 8
+        icone_bomba = {
+            "corpo": self.canvas.create_rectangle(icone_x, icone_y, icone_x + 22, icone_y + 28, fill="#E34E42", outline="#53282A", width=2, tags=tags),
+            "visor": self.canvas.create_rectangle(icone_x + 5, icone_y + 5, icone_x + 17, icone_y + 14, fill="#BFEAF0", outline="#356478", width=1, tags=tags),
+            "base": self.canvas.create_rectangle(icone_x - 3, icone_y + 28, icone_x + 25, icone_y + 32, fill="#5A3A31", outline="#2A1A18", width=1, tags=tags),
+            "mangueira": self.canvas.create_line(icone_x + 22, icone_y + 8, icone_x + 31, icone_y + 8, icone_x + 31, icone_y + 24, icone_x + 26, icone_y + 24, fill="#252A34", width=3, tags=tags),
+            "bico": self.canvas.create_rectangle(icone_x + 24, icone_y + 20, icone_x + 31, icone_y + 25, fill="#F2D05B", outline="#806523", width=1, tags=tags),
+        }
         tanque = {
             "nivel": self.canvas.create_line(painel_x1 + 20, painel_y1 + 13, painel_x2 - 20, painel_y1 + 13, fill="#171720", width=2, tags=tags),
             "ponteiro": self.canvas.create_polygon(0, 0, 0, 0, 0, 0, fill="#F1C92F", outline="#8F6918", width=1, tags=tags),
-            "texto": self.canvas.create_text(larg / 2, hud_top + 18, text="COMBUSTÍVEL", font=("Courier New", 12, "bold"), fill="#25252A", anchor="s", tags=tags),
-            "estado": self.canvas.create_text(larg / 2, hud_top + 88, text="ROTA SEGURA", font=("Courier New", 11, "bold"), fill="#4B429E", anchor="n", tags=tags),
+            "texto": self.canvas.create_text(icone_x + 39, hud_top + 19, text="COMBUSTÍVEL", font=("Courier New", 17, "bold"), fill="#25252A", anchor="sw", tags=tags),
+            "estado": self.canvas.create_text(larg / 2, hud_top + 91, text="ROTA SEGURA", font=("Courier New", 15, "bold"), fill="#4B429E", anchor="n", tags=tags),
             "e": self.canvas.create_text(painel_x1 + 14, painel_y1 + 22, text="E", font=("Courier New", 18, "bold"), fill="#202028", tags=tags),
             "f": self.canvas.create_text(painel_x2 - 14, painel_y1 + 22, text="F", font=("Courier New", 18, "bold"), fill="#202028", tags=tags),
-            "x1": painel_x1, "x2": painel_x2, "y1": painel_y1, "y2": painel_y2, "segmentos": segmentos,
+            "x1": painel_x1, "x2": painel_x2, "y1": painel_y1, "y2": painel_y2, "segmentos": segmentos, "icone": icone_bomba,
         }
         pontuacao_box = self.canvas.create_rectangle(larg * 0.07, hud_top + 24, larg * 0.28, hud_top + 82, fill="#26344A", outline="#F1D54A", width=3, tags=tags)
         pontuacao_id = self.canvas.create_text(larg * 0.175, hud_top + 53, text="RESGATES\n0000", font=("Courier New", 17, "bold"), fill="#FFF4A4", anchor="center", tags=tags)
