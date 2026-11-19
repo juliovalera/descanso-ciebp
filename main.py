@@ -3649,9 +3649,9 @@ class DescansoTela(tk.Tk):
         relogio_compacto = self.config_dados.get("posicao_relogio", "Central (grande)") == "Inferior direito (compacto)"
         if relogio_compacto:
             # Ainda discreto, mas com leitura confortavel em projetores e TVs.
-            tam_clock = max(42, min(64, int(alt * 0.060)))
-            x_clock = larg - max(175, int(larg * 0.135))
-            y_clock = alt - max(82, int(alt * 0.095))
+            tam_clock = max(52, min(78, int(alt * 0.070)))
+            x_clock = larg - max(210, int(larg * 0.160))
+            y_clock = alt - max(70, int(alt * 0.085))
         else:
             tam_clock = tam_clock_padrao
             x_clock = cx
