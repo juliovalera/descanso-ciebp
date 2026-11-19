@@ -4,12 +4,16 @@ chcp 65001 > nul
 
 set "PROJECT_DIR=%~dp0"
 set "PROJECT_DIR=%PROJECT_DIR:~0,-1%"
-set "BUILD_DRIVE=Q:"
+set "BUILD_DRIVE="
 
-if exist %BUILD_DRIVE%\NUL (
+rem Escolhe uma letra livre para que uma execucao interrompida nao bloqueie o proximo build.
+for %%D in (Q R S T U V W X Y Z) do (
+    if not defined BUILD_DRIVE if not exist %%D:\NUL set "BUILD_DRIVE=%%D:"
+)
+
+if not defined BUILD_DRIVE (
     echo.
-    echo  ERRO: A unidade %BUILD_DRIVE% ja esta em uso.
-    echo  Feche ou libere essa unidade e tente novamente.
+    echo  ERRO: Nao foi encontrada uma letra de unidade livre para a compilacao.
     pause
     exit /b 1
 )
