@@ -368,7 +368,7 @@ class JanelaConfig(tk.Tk):
         frame_intermitencia = tk.Frame(F, bg="#10243A")
         frame_intermitencia.pack(fill="x", padx=30, pady=(0, 8))
         tk.Label(frame_intermitencia, text="Intermitencia dos textos", font=("Segoe UI", 10, "bold"), fg="#E3EDF5", bg="#10243A", anchor="w").pack(fill="x", padx=10, pady=(8, 1))
-        tk.Label(frame_intermitencia, text="Desligado mantem visivel; Ocultar remove o elemento da tela; as demais opcoes definem o intervalo de piscar.", font=("Segoe UI", 8), fg="#9CB2C6", bg="#10243A", anchor="w", wraplength=500, justify="left").pack(fill="x", padx=10, pady=(0, 5))
+        tk.Label(frame_intermitencia, text="Desligado mantem visivel; Ocultar remove o elemento da tela; as demais opcoes definem o intervalo, com aparecimento e sumico suaves.", font=("Segoe UI", 8), fg="#9CB2C6", bg="#10243A", anchor="w", wraplength=500, justify="left").pack(fill="x", padx=10, pady=(0, 5))
         opcoes_intermitencia = ("Desligado", "Ocultar", "1 segundo", "2 segundos", "5 segundos", "10 segundos", "30 segundos", "1 minuto", "2 minutos", "5 minutos")
         for chave, rotulo in (("hora", "Hora"), ("evento", "Nome do evento"), ("legenda", "Legenda do espaco"), ("data", "Data"), ("professores", "Professores"), ("mensagem", "Mensagem")):
             linha_intermitencia = tk.Frame(frame_intermitencia, bg="#10243A")
@@ -1038,6 +1038,7 @@ class DescansoTela(tk.Tk):
         self._animacao_voo_after = None
         self._voo_cena = {}
         self._teclas_voo_pressionadas = set()
+        self._intermitencia_textos_after = None
 
         self._configurar_janela()
         self._construir_canvas()
@@ -1047,6 +1048,7 @@ class DescansoTela(tk.Tk):
         if self._modo_fundos_alternados:
             self._agendar_proxima_troca_de_fundo()
         self._loop_relogio()
+        self._loop_intermitencia_textos()
         # Inicia a rádio depois que a janela estiver completamente visível
         self.after(400, self._iniciar_radio)
 
@@ -4720,8 +4722,9 @@ class DescansoTela(tk.Tk):
         return periodos.get(str(valor), 0)
 
     def _atualizar_intermitencias_texto(self, agora_ts):
-        """Mostra ou oculta grupos de texto conforme os intervalos configurados."""
+        """Aplica intermitência com entrada e saída suaves aos grupos de texto."""
         configuracoes = self.config_dados.get("intermitencia_textos", {})
+        opacidades = self.config_dados.get("opacidade_textos", {})
         grupos = {
             "hora": "intermitencia_hora",
             "evento": "intermitencia_evento",
@@ -4733,11 +4736,50 @@ class DescansoTela(tk.Tk):
         for chave, tag in grupos.items():
             opcao = configuracoes.get(chave, "Desligado")
             periodo = self._periodo_intermitencia(opcao)
-            visivel = opcao != "Ocultar" and (periodo == 0 or int(agora_ts / periodo) % 2 == 0)
+            if opcao == "Ocultar":
+                intensidade = 0.0
+            elif periodo == 0:
+                intensidade = 1.0
+            else:
+                # A primeira metade do ciclo fica visível: entra suavemente,
+                # permanece legível e sai antes da metade oculta.
+                fase = agora_ts % (periodo * 2)
+                transicao = max(0.18, min(0.70, periodo * 0.18))
+                if fase >= periodo:
+                    intensidade = 0.0
+                elif fase < transicao:
+                    intensidade = fase / transicao
+                elif fase > periodo - transicao:
+                    intensidade = (periodo - fase) / transicao
+                else:
+                    intensidade = 1.0
+
+            base = {"100%": 1.0, "75%": 0.75, "50%": 0.50, "25%": 0.25}.get(
+                opacidades.get(chave, "100%"), 1.0
+            )
+            intensidade *= base
+            if intensidade >= 0.88:
+                trama = ""
+            elif intensidade >= 0.62:
+                trama = "gray75"
+            elif intensidade >= 0.38:
+                trama = "gray50"
+            else:
+                trama = "gray25"
             try:
-                self.canvas.itemconfig(tag, state="normal" if visivel else "hidden")
+                self.canvas.itemconfig(tag, state="normal" if intensidade > 0.04 else "hidden", stipple=trama)
             except tk.TclError:
                 pass
+
+    def _loop_intermitencia_textos(self):
+        """Atualiza a transição visual sem esperar a próxima troca do relógio."""
+        try:
+            if not self.winfo_exists():
+                return
+        except tk.TclError:
+            return
+        self._atualizar_intermitencias_texto(time.time())
+        self._intermitencia_textos_after = self.after(100, self._loop_intermitencia_textos)
 
     def _atualizar_opacidades_texto(self):
         """Aplica intensidade visual por meio de tramas do Canvas."""
@@ -4767,8 +4809,6 @@ class DescansoTela(tk.Tk):
             self.canvas.itemconfig("clock_shadow", text=agora)
         except Exception:
             pass
-        self._atualizar_intermitencias_texto(time.time())
-        self._atualizar_opacidades_texto()
         self._atualizar_alerta_horario(agora_dt)
         self._verificar_agendamentos_banner(agora_dt)
         self.after(1000, self._loop_relogio)
@@ -5012,6 +5052,12 @@ class DescansoTela(tk.Tk):
     def _sair_tela_cheia(self, event=None):
         """ESC: para a rádio e fecha a janela."""
         self._parar_alternancia_fundos()
+        if self._intermitencia_textos_after is not None:
+            try:
+                self.after_cancel(self._intermitencia_textos_after)
+            except tk.TclError:
+                pass
+            self._intermitencia_textos_after = None
         self._parar_animacao_alerta()
         self._parar_banner_agendado()
         self._parar_animacao_pescador()
