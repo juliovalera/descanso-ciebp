@@ -1004,6 +1004,7 @@ class DescansoTela(tk.Tk):
         self._construir_canvas()
         self._configurar_atalhos()
         self._atualizar_tela()
+        self.after(350, self._forcar_foco_controle)
         self._loop_relogio()
         # Inicia a rádio depois que a janela estiver completamente visível
         self.after(400, self._iniciar_radio)
@@ -1031,8 +1032,9 @@ class DescansoTela(tk.Tk):
         """Registra os atalhos de teclado."""
         self.bind("<Escape>", self._sair_tela_cheia)
         for tecla in ("Up", "Down", "Left", "Right"):
-            self.bind(f"<KeyPress-{tecla}>", self._pressionar_seta_voo)
-            self.bind(f"<KeyRelease-{tecla}>", self._soltar_seta_voo)
+            # bind_all garante captura mesmo quando o foco estiver no Canvas.
+            self.bind_all(f"<KeyPress-{tecla}>", self._pressionar_seta_voo)
+            self.bind_all(f"<KeyRelease-{tecla}>", self._soltar_seta_voo)
         self.bind("<FocusOut>", self._limpar_controle_voo)
         self.bind("<m>", self._alternar_mudo)
         self.bind("<M>", self._alternar_mudo)
@@ -1055,6 +1057,18 @@ class DescansoTela(tk.Tk):
     def _limpar_controle_voo(self, event=None):
         self._teclas_voo_pressionadas.clear()
 
+    def _forcar_foco_controle(self, event=None):
+        """Mantem a tela cheia como receptora das teclas em computadores com foco inicial instavel."""
+        try:
+            self.focus_force()
+            self.canvas.focus_set()
+        except tk.TclError:
+            pass
+
+    def _focar_controle_ao_clicar(self, event=None):
+        self._forcar_foco_controle()
+        return "break"
+
     # ------------------------------------------------------------------
     # CANVAS E DESENHO DA INTERFACE
     # ------------------------------------------------------------------
@@ -1068,6 +1082,7 @@ class DescansoTela(tk.Tk):
             bd=0
         )
         self.canvas.pack(fill="both", expand=True)
+        self.canvas.bind("<Button-1>", self._focar_controle_ao_clicar)
 
     def _atualizar_tela(self):
         """
