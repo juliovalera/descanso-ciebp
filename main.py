@@ -3471,8 +3471,8 @@ class DescansoTela(tk.Tk):
         tanque = {
             "nivel": self.canvas.create_line(painel_x1 + 20, painel_y1 + 13, painel_x2 - 20, painel_y1 + 13, fill="#171720", width=2, tags=tags),
             "ponteiro": self.canvas.create_polygon(0, 0, 0, 0, 0, 0, fill="#F1C92F", outline="#8F6918", width=1, tags=tags),
-            "texto": self.canvas.create_text(icone_x + 39, hud_top + 19, text="COMBUSTÍVEL", font=("Courier New", 17, "bold"), fill="#25252A", anchor="sw", tags=tags),
-            "estado": self.canvas.create_text(larg / 2, hud_top + 91, text="ROTA SEGURA", font=("Courier New", 15, "bold"), fill="#4B429E", anchor="n", tags=tags),
+            "texto": self.canvas.create_text(icone_x + 39, hud_top + 27, text="COMBUSTÍVEL", font=("Courier New", 17, "bold"), fill="#25252A", anchor="sw", tags=tags),
+            "estado": self.canvas.create_text(larg / 2, hud_top + 80, text="ROTA SEGURA", font=("Courier New", 15, "bold"), fill="#4B429E", anchor="n", tags=tags),
             "e": self.canvas.create_text(painel_x1 + 14, painel_y1 + 22, text="E", font=("Courier New", 18, "bold"), fill="#202028", tags=tags),
             "f": self.canvas.create_text(painel_x2 - 14, painel_y1 + 22, text="F", font=("Courier New", 18, "bold"), fill="#202028", tags=tags),
             "x1": painel_x1, "x2": painel_x2, "y1": painel_y1, "y2": painel_y2, "segmentos": segmentos, "icone": icone_bomba,
