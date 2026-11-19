@@ -991,6 +991,8 @@ class DescansoTela(tk.Tk):
         self._sequencia_fundos = ("__pescador__", "__blocos__", "__voo__")
         self._indice_fundo_alternado = 0
         self._alternancia_fundos_after = None
+        self._transicao_fundos_after = None
+        self._transicao_fundos_ativa = False
         self.fundo_path = self._sequencia_fundos[0] if self._modo_fundos_alternados else fundo_path
         self.alerta_teste = alerta_teste
 
@@ -1168,16 +1170,60 @@ class DescansoTela(tk.Tk):
             except tk.TclError:
                 pass
             self._alternancia_fundos_after = None
+        if self._transicao_fundos_after is not None:
+            try:
+                self.after_cancel(self._transicao_fundos_after)
+            except tk.TclError:
+                pass
+            self._transicao_fundos_after = None
+        self._transicao_fundos_ativa = False
+        try:
+            self.canvas.delete("transicao_fundos")
+        except tk.TclError:
+            pass
 
     def _trocar_fundo_alternado(self):
-        """Avanca para o proximo cenario sem reiniciar dados, relogio ou audio."""
-        if not self._modo_fundos_alternados:
+        """Inicia uma cortina suave antes de avançar ao próximo cenário."""
+        if not self._modo_fundos_alternados or self._transicao_fundos_ativa:
             return
         self._alternancia_fundos_after = None
-        self._indice_fundo_alternado = (self._indice_fundo_alternado + 1) % len(self._sequencia_fundos)
-        self.fundo_path = self._sequencia_fundos[self._indice_fundo_alternado]
+        self._transicao_fundos_ativa = True
         self._limpar_controle_voo()
-        self._atualizar_tela()
+        self._animar_transicao_fundos(0, fechando=True)
+
+    def _desenhar_cortina_transicao(self, progresso):
+        """Fecha ou abre uma cortina vertical sem usar transparência por trama."""
+        larg, alt = self.winfo_width(), self.winfo_height()
+        metade = alt * 0.5 * max(0.0, min(1.0, progresso))
+        self.canvas.delete("transicao_fundos")
+        self.canvas.create_rectangle(0, 0, larg, metade, fill="#071827", outline="", tags="transicao_fundos")
+        self.canvas.create_rectangle(0, alt - metade, larg, alt, fill="#071827", outline="", tags="transicao_fundos")
+
+    def _animar_transicao_fundos(self, quadro, fechando):
+        """Executa a cortina em 12 quadros por etapa antes e depois da troca."""
+        if not self._transicao_fundos_ativa:
+            return
+        total_quadros = 12
+        progresso = quadro / total_quadros
+        self._desenhar_cortina_transicao(progresso if fechando else 1.0 - progresso)
+        if quadro < total_quadros:
+            self._transicao_fundos_after = self.after(
+                35, lambda: self._animar_transicao_fundos(quadro + 1, fechando)
+            )
+            return
+
+        if fechando:
+            self._indice_fundo_alternado = (self._indice_fundo_alternado + 1) % len(self._sequencia_fundos)
+            self.fundo_path = self._sequencia_fundos[self._indice_fundo_alternado]
+            self._atualizar_tela()
+            # A tela acabou de ser recriada; começa a abertura já sobre o novo cenário.
+            self._desenhar_cortina_transicao(1.0)
+            self._transicao_fundos_after = self.after(35, lambda: self._animar_transicao_fundos(0, fechando=False))
+            return
+
+        self.canvas.delete("transicao_fundos")
+        self._transicao_fundos_after = None
+        self._transicao_fundos_ativa = False
         self._agendar_proxima_troca_de_fundo()
 
     def _forcar_foco_controle(self, event=None):
