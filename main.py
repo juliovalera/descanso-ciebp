@@ -3198,6 +3198,7 @@ class DescansoTela(tk.Tk):
         rio_largo_esq, rio_largo_dir = int(larg * 0.23), int(larg * 0.77)
         rio_esq, rio_dir = int(larg * 0.365), int(larg * 0.635)
         self.canvas.create_rectangle(0, 0, larg, hud_top, fill="#4CB273", outline="", tags=tags)
+        clima_overlay = self.canvas.create_rectangle(0, 0, larg, hud_top, fill="#496A8A", outline="", stipple="gray25", state="hidden", tags=tags)
         def margens_rio(y, deslocamento=0.0):
             # Secoes largas e estreitas percorrem a tela; nenhuma margem fica fixa em funil.
             mundo_y = y - deslocamento
@@ -3218,6 +3219,7 @@ class DescansoTela(tk.Tk):
             return pontos
 
         rio_item = self.canvas.create_polygon(*pontos_do_rio(), fill="#355E9F", outline="", tags=tags)
+        chuva = [self.canvas.create_line(0, 0, 0, 0, fill="#C7E9F6", width=2, state="hidden", tags=tags) for _ in range(26)]
 
         # Linhas claras da margem e faixa de estrada antes do painel de instrumentos.
         estrada_esq = self.canvas.create_rectangle(0, hud_top - 7, rio_esq, hud_top, fill="#77797A", outline="", tags=tags)
@@ -3240,6 +3242,7 @@ class DescansoTela(tk.Tk):
             obstaculos.append({
                 "indice": indice,
                 "tipo": "resgate" if indice == 1 else random.choice(("barco", "helicoptero", "boia", "ilha")),
+                "variante_resgate": random.choice(("bote", "caiaque", "boia")),
                 "x": 0.0, "y": float(indice * hud_top / 7 - 40), "vel": random.uniform(2.3, 4.1),
                 "fase": random.uniform(0, math.tau), "resgatado": False,
                 "corpo": self.canvas.create_polygon(0, 0, 0, 0, 0, 0, fill="#101018", outline="#101018", tags=tags),
@@ -3301,7 +3304,7 @@ class DescansoTela(tk.Tk):
         cabo_resgate = self.canvas.create_line(0, 0, 0, 0, fill="#FFF1A5", width=3, state="hidden", tags=tags)
         self._voo_cena = {
             "larg": larg, "alt": alt, "hud_top": hud_top, "rio_esq": rio_esq, "rio_dir": rio_dir, "margens_rio": margens_rio, "pontos_do_rio": pontos_do_rio, "rio_item": rio_item,
-            "estrada_esq": estrada_esq, "estrada_dir": estrada_dir, "faixa_esq": faixa_esq, "faixa_dir": faixa_dir, "deslocamento_margem": 0.0, "ondas": ondas,
+            "estrada_esq": estrada_esq, "estrada_dir": estrada_dir, "faixa_esq": faixa_esq, "faixa_dir": faixa_dir, "deslocamento_margem": 0.0, "ondas": ondas, "clima": "sol", "proxima_mudanca_clima": time.time() + 38, "clima_overlay": clima_overlay, "chuva": chuva,
             "aviao": aviao, "obstaculos": obstaculos, "margem_objetos": margem_objetos, "posto": posto, "tanque": tanque,
             "aviao_x": larg * 0.5, "aviao_y": hud_top - 145, "aviao_y_base": hud_top - 145, "combustivel": 100.0,
             "reabastecendo": False, "manobra_ativa": False, "manobra_x": larg * 0.5, "manobra_y": hud_top - 145, "manobra_obstaculo": None, "manobra_inicio": 0.0,
@@ -3337,6 +3340,29 @@ class DescansoTela(tk.Tk):
             y = ((agora_ts * 105 + indice * 110) % (cena["hud_top"] + 100)) - 50
             margem_esq, margem_dir = margens_rio(y, deslocamento_margem)
             self.canvas.coords(onda, margem_esq + 18, y, margem_dir - 18, y)
+
+        # Clima discreto em ciclos longos: muda o ambiente sem competir com os textos.
+        if agora_ts >= cena["proxima_mudanca_clima"]:
+            opcoes_clima = tuple(item for item in ("sol", "nublado", "garoa") if item != cena["clima"])
+            cena["clima"] = random.choice(opcoes_clima)
+            cena["proxima_mudanca_clima"] = agora_ts + random.uniform(38, 62)
+        clima = cena["clima"]
+        if clima == "sol":
+            self.canvas.itemconfig(cena["clima_overlay"], state="hidden")
+            self.canvas.itemconfig(cena["rio_item"], fill="#355E9F")
+            for gota in cena["chuva"]:
+                self.canvas.itemconfig(gota, state="hidden")
+        else:
+            self.canvas.itemconfig(cena["clima_overlay"], state="normal", stipple="gray25" if clima == "nublado" else "gray50")
+            self.canvas.itemconfig(cena["rio_item"], fill="#2E568E" if clima == "nublado" else "#294B7A")
+            for indice, gota in enumerate(cena["chuva"]):
+                if clima == "garoa":
+                    gx = (indice * 97 + agora_ts * 85) % larg
+                    gy = (indice * 61 + agora_ts * 145) % cena["hud_top"]
+                    self.canvas.coords(gota, gx, gy, gx - 7, gy + 16)
+                    self.canvas.itemconfig(gota, state="normal")
+                else:
+                    self.canvas.itemconfig(gota, state="hidden")
 
         # A rota normal se move continuamente nos dois eixos, sem periodos de espera.
         alvo_x = (rio_esq + rio_dir) / 2 + math.sin(agora_ts * 0.47) * (rio_dir - rio_esq) * 0.22
@@ -3374,6 +3400,7 @@ class DescansoTela(tk.Tk):
                 y=random.uniform(cena["hud_top"] * 0.10, cena["hud_top"] * 0.22),
                 vel=random.uniform(3.5, 4.3),
                 fase=random.uniform(0, math.tau),
+                variante_resgate=random.choice(("bote", "caiaque", "boia")),
                 resgatado=False,
             )
             cena["proximo_resgate_ts"] = float("inf")
@@ -3551,6 +3578,7 @@ class DescansoTela(tk.Tk):
         self.canvas.itemconfig(haste_boia, state="hidden")
         self.canvas.itemconfig(luz_boia, state="hidden")
         if tipo == "resgate":
+            variante = obstaculo.get("variante_resgate", "bote")
             # Bote de resgate grande, com dois ocupantes identificáveis a distância.
             self.canvas.coords(sombra, x - 68, y + 22, x + 68, y + 22, x + 49, y + 31, x - 49, y + 31)
             self.canvas.itemconfig(sombra, fill="#294A92")
@@ -3563,10 +3591,30 @@ class DescansoTela(tk.Tk):
             self.canvas.itemconfig(acento, fill="#E43E3E")
             self.canvas.coords(boia_resgate, x - 12, y - 2, x + 12, y + 22)
             self.canvas.itemconfig(boia_resgate, state="normal")
+            if variante == "caiaque":
+                self.canvas.coords(sombra, x - 58, y + 13, x + 58, y + 13, x + 42, y + 22, x - 42, y + 22)
+                self.canvas.coords(corpo, x - 62, y + 4, x - 43, y - 8, x + 43, y - 8, x + 62, y + 4, x + 40, y + 14, x - 40, y + 14)
+                self.canvas.itemconfig(corpo, fill="#F2C63D", outline="#8B5F15")
+                self.canvas.coords(detalhe, x - 25, y - 5, x + 25, y - 5, x + 34, y + 4, x - 34, y + 4)
+                self.canvas.itemconfig(detalhe, fill="#D94E38")
+                self.canvas.coords(extra, x - 38, y - 25, x + 38, y + 20)
+                self.canvas.coords(acento, x - 6, y - 20, x + 6, y - 7)
+                self.canvas.itemconfig(boia_resgate, state="hidden")
+            elif variante == "boia":
+                self.canvas.coords(sombra, x - 44, y + 18, x + 44, y + 18, x + 31, y + 26, x - 31, y + 26)
+                self.canvas.coords(corpo, x - 37, y + 7, x - 27, y - 13, x + 27, y - 13, x + 37, y + 7, x + 24, y + 21, x - 24, y + 21)
+                self.canvas.itemconfig(corpo, fill="#F4E8BB", outline="#BD3D31")
+                self.canvas.coords(detalhe, x - 18, y + 5, x - 8, y - 6, x + 8, y - 6, x + 18, y + 5, x + 8, y + 15, x - 8, y + 15)
+                self.canvas.itemconfig(detalhe, fill="#E64B3F")
+                self.canvas.coords(extra, x - 30, y + 22, x + 30, y + 22)
+                self.canvas.coords(acento, x - 5, y - 30, x + 5, y - 18)
+                self.canvas.coords(boia_resgate, x - 31, y - 16, x + 31, y + 26)
+                self.canvas.itemconfig(boia_resgate, state="normal", outline="#F4B93D", width=4)
             self.canvas.coords(aura_resgate, x - 78, y - 50, x + 78, y + 38)
             self.canvas.itemconfig(aura_resgate, state="normal", outline="#FFE76A")
             self.canvas.coords(placa_resgate, x, y - 58)
-            self.canvas.itemconfig(placa_resgate, state="normal", text="RESGATE")
+            rotulo_resgate = {"bote": "RESGATE: BOTE", "caiaque": "RESGATE: CAIAQUE", "boia": "RESGATE: BOIA"}.get(variante, "RESGATE")
+            self.canvas.itemconfig(placa_resgate, state="normal", text=rotulo_resgate)
 
             def desenhar_pessoa(cabeca, tronco, bracos, px, py, cor_colete):
                 self.canvas.coords(cabeca, px - 10, py - 27, px + 10, py - 7)
@@ -3578,14 +3626,16 @@ class DescansoTela(tk.Tk):
 
             cena = self._voo_cena or {}
             em_resgate = cena.get("resgate_ativo") == obstaculo["indice"]
+            quantidade_pessoas = 2 if variante == "bote" else 1
+            pessoas_resgate = (
+                (pessoa1, pessoa1_corpo, pessoa1_bracos, x - 25, "#F6CF45", 0.00),
+                (pessoa2, pessoa2_corpo, pessoa2_bracos, x + 25, "#49B7DD", 0.42),
+            )[:quantidade_pessoas]
             if em_resgate:
                 progresso = min(1.0, max(0.0, (time.time() - cena.get("resgate_inicio", time.time())) / 4.0))
                 destino_y = cena.get("aviao_y", y - 120) + 31
                 destino_x = cena.get("aviao_x", x)
-                for indice, (cabeca, tronco, bracos, inicio_x, cor_colete, atraso) in enumerate((
-                    (pessoa1, pessoa1_corpo, pessoa1_bracos, x - 25, "#F6CF45", 0.00),
-                    (pessoa2, pessoa2_corpo, pessoa2_bracos, x + 25, "#49B7DD", 0.42),
-                )):
+                for indice, (cabeca, tronco, bracos, inicio_x, cor_colete, atraso) in enumerate(pessoas_resgate):
                     subida = min(1.0, max(0.0, (progresso - atraso) / 0.46))
                     if subida < 1.0:
                         px = inicio_x + (destino_x - inicio_x) * subida
@@ -3596,7 +3646,8 @@ class DescansoTela(tk.Tk):
                     self.canvas.tag_raise(item)
             elif not obstaculo["resgatado"]:
                 desenhar_pessoa(pessoa1, pessoa1_corpo, pessoa1_bracos, x - 25, y - 5, "#F6CF45")
-                desenhar_pessoa(pessoa2, pessoa2_corpo, pessoa2_bracos, x + 25, y - 5, "#49B7DD")
+                if quantidade_pessoas == 2:
+                    desenhar_pessoa(pessoa2, pessoa2_corpo, pessoa2_bracos, x + 25, y - 5, "#49B7DD")
         elif tipo == "barco":
             self.canvas.coords(sombra, x - 43, y + 14, x + 42, y + 14, x + 30, y + 21, x - 30, y + 21)
             self.canvas.itemconfig(sombra, fill="#294A92")
