@@ -998,6 +998,7 @@ class DescansoTela(tk.Tk):
         self._animacao_voo_ativa = False
         self._animacao_voo_after = None
         self._voo_cena = {}
+        self._teclas_voo_pressionadas = set()
 
         self._configurar_janela()
         self._construir_canvas()
@@ -1029,10 +1030,30 @@ class DescansoTela(tk.Tk):
     def _configurar_atalhos(self):
         """Registra os atalhos de teclado."""
         self.bind("<Escape>", self._sair_tela_cheia)
-        self.bind("<Up>", self._volume_mais)
-        self.bind("<Down>", self._volume_menos)
+        for tecla in ("Up", "Down", "Left", "Right"):
+            self.bind(f"<KeyPress-{tecla}>", self._pressionar_seta_voo)
+            self.bind(f"<KeyRelease-{tecla}>", self._soltar_seta_voo)
+        self.bind("<FocusOut>", self._limpar_controle_voo)
         self.bind("<m>", self._alternar_mudo)
         self.bind("<M>", self._alternar_mudo)
+
+    def _pressionar_seta_voo(self, event):
+        """Setas assumem temporariamente o voo; fora dele, mantem o controle de volume."""
+        if self.fundo_path == "__voo__" and self._voo_cena:
+            self._teclas_voo_pressionadas.add(event.keysym)
+            return "break"
+        if event.keysym == "Up":
+            self._volume_mais(event)
+        elif event.keysym == "Down":
+            self._volume_menos(event)
+        return "break"
+
+    def _soltar_seta_voo(self, event):
+        self._teclas_voo_pressionadas.discard(event.keysym)
+        return "break"
+
+    def _limpar_controle_voo(self, event=None):
+        self._teclas_voo_pressionadas.clear()
 
     # ------------------------------------------------------------------
     # CANVAS E DESENHO DA INTERFACE
@@ -3474,7 +3495,18 @@ class DescansoTela(tk.Tk):
                     or agora_ts - cena["manobra_inicio"] > 5.5):
                 cena["manobra_ativa"] = False
                 cena["manobra_obstaculo"] = None
-        desvio_urgente = cena["manobra_ativa"]
+
+        # Controle temporario: ao soltar todas as setas, o piloto automatico retoma a rota.
+        teclas = self._teclas_voo_pressionadas
+        direcao_x = (1 if "Right" in teclas else 0) - (1 if "Left" in teclas else 0)
+        direcao_y = (1 if "Down" in teclas else 0) - (1 if "Up" in teclas else 0)
+        controle_manual = bool(direcao_x or direcao_y)
+        cena["controle_manual"] = controle_manual
+        if controle_manual:
+            cena["manobra_ativa"] = False
+            alvo_x = cena["aviao_x"] + direcao_x * 175
+            alvo_y = cena["aviao_y"] + direcao_y * 135
+        desvio_urgente = cena["manobra_ativa"] or controle_manual
 
         for objeto_margem in cena["margem_objetos"]:
             objeto_margem["y"] += objeto_margem["vel"] * dt * 13
@@ -3485,6 +3517,7 @@ class DescansoTela(tk.Tk):
             self._desenhar_objeto_margem_voo(objeto_margem)
 
         alvo_x = max(rio_esq + 32, min(rio_dir - 32, alvo_x))
+        alvo_y = max(80, min(cena["hud_top"] - 52, alvo_y))
         cena["aviao_x"] = self._aproximar_valor(cena["aviao_x"], alvo_x, 15.0 if desvio_urgente else 5.5)
         cena["aviao_y"] = self._aproximar_valor(cena["aviao_y"], alvo_y, 11.0 if desvio_urgente else 3.0)
         x = cena["aviao_x"]
@@ -3547,8 +3580,8 @@ class DescansoTela(tk.Tk):
                 self.canvas.itemconfig(segmento, fill="#34383C")
         ponteiro_x = tanque["x1"] + 21 + (tanque["x2"] - tanque["x1"] - 42) * combustivel / 100
         self.canvas.coords(tanque["ponteiro"], ponteiro_x - 7, tanque["y1"] + 4, ponteiro_x + 7, tanque["y1"] + 4, ponteiro_x, tanque["y1"] + 16)
-        estado = "REABASTECENDO" if cena["reabastecendo"] else "ATENCAO: COMBUSTIVEL" if combustivel < 30 else "ROTA SEGURA"
-        cor = "#ED4A4A" if combustivel < 30 else "#4B429E"
+        estado = "CONTROLE MANUAL" if cena.get("controle_manual") else "REABASTECENDO" if cena["reabastecendo"] else "ATENCAO: COMBUSTIVEL" if combustivel < 30 else "ROTA SEGURA"
+        cor = "#F0C93A" if cena.get("controle_manual") else "#ED4A4A" if combustivel < 30 else "#4B429E"
         self.canvas.itemconfig(tanque["estado"], text=estado, fill=cor)
 
     def _desenhar_obstaculo_voo_pixel(self, obstaculo):
@@ -3725,6 +3758,7 @@ class DescansoTela(tk.Tk):
 
     def _parar_animacao_voo(self):
         self._animacao_voo_ativa = False
+        self._teclas_voo_pressionadas.clear()
         if self._animacao_voo_after is not None:
             try:
                 self.after_cancel(self._animacao_voo_after)
@@ -3826,8 +3860,9 @@ class DescansoTela(tk.Tk):
         tam_prof = int(20 * escala_texto)
         tam_msg = int(19 * escala_texto)
 
-        # Separador
-        self._linha_decorativa(cx, y, int(painel_larg * 0.5), cor_destaque)
+        # No voo, os separadores atravessariam o rio e competiriam com a rota.
+        if self.fundo_path != "__voo__":
+            self._linha_decorativa(cx, y, int(painel_larg * 0.5), cor_destaque)
         y += int(20 * escala_texto)
 
         # Nome do evento
@@ -3889,8 +3924,8 @@ class DescansoTela(tk.Tk):
 
             y += int(12 * escala_texto)
 
-        # Separador
-        self._linha_decorativa(cx, y, int(painel_larg * 0.4), cor_destaque, espessura=1)
+        if self.fundo_path != "__voo__":
+            self._linha_decorativa(cx, y, int(painel_larg * 0.4), cor_destaque, espessura=1)
         y += int(18 * escala_texto)
         if self.fundo_path == "__pescador__":
             y += int(60 * escala_texto) + 80
