@@ -3343,16 +3343,19 @@ class DescansoTela(tk.Tk):
         altura_cruzeiro = cena["aviao_y_base"] + math.sin(agora_ts * 0.72) * 78
         alvo_y = altura_cruzeiro
         posto = cena["posto"]
-        if cena["combustivel"] < 30 and not posto["ativo"]:
+        if cena["combustivel"] < 35 and not posto["ativo"]:
             posto["ativo"] = True
             posto["x"] = larg / 2 + random.choice((-1, 1)) * larg * 0.075
-            posto["y"] = -65.0
+            # O posto entra na rota da aeronave, e nao em uma passagem que pode ser perdida.
+            posto["y"] = aviao_y - 46
         if posto["ativo"]:
+            # Enquanto o posto esta disponivel, sempre resta combustivel suficiente para a manobra.
+            cena["combustivel"] = max(18.0, cena["combustivel"])
+            cena["manobra_ativa"] = False
             if cena["reabastecendo"]:
                 posto["y"] = aviao_y - 46
-            else:
-                posto["y"] += 6.6
             alvo_x = posto["x"]
+            alvo_y = posto["y"] + 46
 
         obstaculo_proximo = None
         distancia_proxima = float("inf")
@@ -3481,7 +3484,7 @@ class DescansoTela(tk.Tk):
             self.canvas.coords(posto["texto"], px, py)
             for item in (posto["corpo"], posto["faixa1"], posto["faixa2"], posto["texto"]):
                 self.canvas.itemconfig(item, state="normal")
-            if abs(px - x) < 26 and abs(py - (aviao_y - 46)) < 33:
+            if abs(px - x) < 42 and abs(py - (aviao_y - 46)) < 48:
                 cena["reabastecendo"] = True
                 cena["combustivel"] = min(100.0, cena["combustivel"] + dt * 48)
             if cena["reabastecendo"] and cena["combustivel"] >= 99.5:
